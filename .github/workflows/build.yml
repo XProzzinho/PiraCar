@@ -38,7 +38,11 @@ jobs:
           python3 tool/patch_android.py "$MAPS_KEY"
 
       - run: flutter pub get
-      - run: flutter build apk --release
+
+      - name: Compilar APK
+        env:
+          MAPS_KEY: ${{ secrets.MAPS_API_KEY }}
+        run: flutter build apk --release --dart-define=MAPS_KEY="$MAPS_KEY"
 
       - uses: actions/upload-artifact@v4
         with:
