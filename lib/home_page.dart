@@ -5,6 +5,8 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import 'rota.dart';
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -18,6 +20,8 @@ class _HomePageState extends State<HomePage> {
   final _destino = TextEditingController();
   GoogleMapController? _mapa;
   LatLng? _posicao;
+  LatLng? _destinoLL;
+  Rota? _rota;
   String? _corridaId;
   bool _pedindo = false;
 
@@ -38,6 +42,11 @@ class _HomePageState extends State<HomePage> {
     _localizar();
   }
 
+  void _aviso(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   Future<void> _localizar() async {
     var perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) {
@@ -52,6 +61,27 @@ class _HomePageState extends State<HomePage> {
     _mapa?.animateCamera(CameraUpdate.newLatLngZoom(ll, 15));
   }
 
+  void _ajustarCamera(List<LatLng> pts) {
+    if (pts.length < 2) return;
+    double minLat = pts.first.latitude, maxLat = minLat;
+    double minLng = pts.first.longitude, maxLng = minLng;
+    for (final p in pts) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+    try {
+      _mapa?.animateCamera(CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat, minLng),
+          northeast: LatLng(maxLat, maxLng),
+        ),
+        60,
+      ));
+    } catch (_) {}
+  }
+
   Future<void> _pedirCorrida() async {
     if (_posicao == null || _destino.text.trim().isEmpty) return;
     setState(() => _pedindo = true);
@@ -59,6 +89,7 @@ class _HomePageState extends State<HomePage> {
       final locs = await locationFromAddress(_destino.text.trim());
       if (locs.isEmpty) throw 'Endereço não encontrado';
       final d = locs.first;
+      final destino = LatLng(d.latitude, d.longitude);
       final ref = await _db.collection('corridas').add({
         'passageiroId': _uid,
         'motoristaId': null,
@@ -68,11 +99,20 @@ class _HomePageState extends State<HomePage> {
         'status': 'solicitada',
         'criadoEm': FieldValue.serverTimestamp(),
       });
-      setState(() => _corridaId = ref.id);
-    } catch (e) {
+      setState(() {
+        _corridaId = ref.id;
+        _destinoLL = destino;
+      });
+      final rota = await buscarRota(_posicao!, destino);
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('$e')));
+      if (rota == null) {
+        _aviso('Não foi possível traçar a rota.');
+      } else {
+        setState(() => _rota = rota);
+        _ajustarCamera(rota.pontos);
+      }
+    } catch (e) {
+      _aviso('$e');
     } finally {
       if (mounted) setState(() => _pedindo = false);
     }
@@ -87,7 +127,14 @@ class _HomePageState extends State<HomePage> {
 
   void _novaCorrida() {
     _destino.clear();
-    setState(() => _corridaId = null);
+    setState(() {
+      _corridaId = null;
+      _rota = null;
+      _destinoLL = null;
+    });
+    if (_posicao != null) {
+      _mapa?.animateCamera(CameraUpdate.newLatLngZoom(_posicao!, 15));
+    }
   }
 
   @override
@@ -109,6 +156,24 @@ class _HomePageState extends State<HomePage> {
                 const CameraPosition(target: _centroPiracicaba, zoom: 13),
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
+            padding: const EdgeInsets.only(bottom: 170),
+            polylines: {
+              if (_rota != null)
+                Polyline(
+                  polylineId: const PolylineId('rota'),
+                  points: _rota!.pontos,
+                  width: 5,
+                  color: Colors.blue,
+                ),
+            },
+            markers: {
+              if (_destinoLL != null)
+                Marker(
+                  markerId: const MarkerId('destino'),
+                  position: _destinoLL!,
+                  infoWindow: InfoWindow(title: _destino.text),
+                ),
+            },
             onMapCreated: (c) => _mapa = c,
           ),
           Align(
@@ -166,6 +231,7 @@ class _HomePageState extends State<HomePage> {
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             Text('Destino: ${dados['destinoTexto']}'),
+            if (_rota != null) Text('Trajeto: ${_rota!.resumo}'),
             const SizedBox(height: 12),
             if (encerrada)
               FilledButton(
