@@ -33,12 +33,14 @@ t = re.sub(
 )
 sg.write_text(t)
 
-# 3) app/build.gradle: aplica o plugin e define minSdk 23
+# 3) app/build.gradle: plugin, minSdk 23 e compileSdk 35
 bg = root / "app/build.gradle"
 t = bg.read_text()
 assert 'id "kotlin-android"' in t, "padrão não encontrado em app/build.gradle"
 t = t.replace('id "kotlin-android"', 'id "kotlin-android"\n    id "com.google.gms.google-services"', 1)
 t, n = re.subn(r"minSdk\s*=?\s*flutter\.minSdkVersion", "minSdk = 23", t)
 assert n == 1, "minSdk não encontrado"
+t, n = re.subn(r"compileSdk\s*=?\s*flutter\.compileSdkVersion", "compileSdk = 35", t)
+assert n == 1, "compileSdk não encontrado"
 bg.write_text(t)
 print("Patch Android aplicado com sucesso")
