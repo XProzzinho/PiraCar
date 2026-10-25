@@ -7,6 +7,11 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'rota.dart';
 
+// Preço por quilômetro (em reais). Para mudar o valor, altere aqui.
+const _precoPorKm = 3.0;
+
+String _real(double v) => 'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -15,14 +20,18 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  static const _centroPiracicaba = LatLng(-22.7253, -47.6492);
+  static const _centroPiracicaba = LatLng(-17.3453, -44.9419);
 
   final _destino = TextEditingController();
   GoogleMapController? _mapa;
   LatLng? _posicao;
   LatLng? _destinoLL;
+  String _destinoTexto = '';
   Rota? _rota;
+  double? _valor;
+  String? _pagamento;
   String? _corridaId;
+  bool _calculando = false;
   bool _pedindo = false;
 
   final _db = FirebaseFirestore.instance;
@@ -34,6 +43,24 @@ class _HomePageState extends State<HomePage> {
     'em_andamento': 'Corrida em andamento',
     'finalizada': 'Corrida finalizada',
     'cancelada': 'Corrida cancelada',
+  };
+
+  static const _formas = {
+    'credito': 'Crédito',
+    'debito': 'Débito',
+    'pix': 'Pix',
+  };
+
+  static const _icones = {
+    'credito': Icons.credit_card,
+    'debito': Icons.payment,
+    'pix': Icons.qr_code_2,
+  };
+
+  static const _nomesPagamento = {
+    'credito': 'Cartão de crédito',
+    'debito': 'Cartão de débito',
+    'pix': 'Pix',
   };
 
   @override
@@ -82,39 +109,72 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {}
   }
 
-  Future<void> _pedirCorrida() async {
+  // Passo 1: acha o destino, traça a rota e calcula o valor.
+  Future<void> _calcular() async {
     if (_posicao == null || _destino.text.trim().isEmpty) return;
+    setState(() => _calculando = true);
+    try {
+      final texto = _destino.text.trim();
+      final locs = await locationFromAddress('$texto, Pirapora, MG');
+      if (locs.isEmpty) throw 'Endereço não encontrado';
+      final destino = LatLng(locs.first.latitude, locs.first.longitude);
+      final rota = await buscarRota(_posicao!, destino);
+      if (rota == null) {
+        throw 'Não foi possível traçar a rota. Tente novamente.';
+      }
+      if (!mounted) return;
+      final km = rota.metros / 1000;
+      setState(() {
+        _destinoLL = destino;
+        _destinoTexto = texto;
+        _rota = rota;
+        _valor = double.parse((km * _precoPorKm).toStringAsFixed(2));
+      });
+      _ajustarCamera(rota.pontos);
+    } catch (e) {
+      _aviso('$e');
+    } finally {
+      if (mounted) setState(() => _calculando = false);
+    }
+  }
+
+  // Passo 2: confirma o pedido com a forma de pagamento escolhida.
+  Future<void> _pedirCorrida() async {
+    if (_posicao == null ||
+        _destinoLL == null ||
+        _rota == null ||
+        _valor == null ||
+        _pagamento == null) return;
     setState(() => _pedindo = true);
     try {
-      final locs = await locationFromAddress(_destino.text.trim());
-      if (locs.isEmpty) throw 'Endereço não encontrado';
-      final d = locs.first;
-      final destino = LatLng(d.latitude, d.longitude);
       final ref = await _db.collection('corridas').add({
         'passageiroId': _uid,
         'motoristaId': null,
         'origem': GeoPoint(_posicao!.latitude, _posicao!.longitude),
-        'destino': GeoPoint(d.latitude, d.longitude),
-        'destinoTexto': _destino.text.trim(),
+        'destino': GeoPoint(_destinoLL!.latitude, _destinoLL!.longitude),
+        'destinoTexto': _destinoTexto,
+        'distanciaKm': double.parse((_rota!.metros / 1000).toStringAsFixed(2)),
+        'valor': _valor,
+        'pagamento': _pagamento,
         'status': 'solicitada',
         'criadoEm': FieldValue.serverTimestamp(),
       });
-      setState(() {
-        _corridaId = ref.id;
-        _destinoLL = destino;
-      });
-      final rota = await buscarRota(_posicao!, destino);
-      if (!mounted) return;
-      if (rota == null) {
-        _aviso('Não foi possível traçar a rota.');
-      } else {
-        setState(() => _rota = rota);
-        _ajustarCamera(rota.pontos);
-      }
-    } catch (e) {
-      _aviso('$e');
+      setState(() => _corridaId = ref.id);
+    } catch (_) {
+      _aviso('Não foi possível pedir a corrida.');
     } finally {
       if (mounted) setState(() => _pedindo = false);
+    }
+  }
+
+  void _alterarDestino() {
+    setState(() {
+      _rota = null;
+      _destinoLL = null;
+      _valor = null;
+    });
+    if (_posicao != null) {
+      _mapa?.animateCamera(CameraUpdate.newLatLngZoom(_posicao!, 15));
     }
   }
 
@@ -131,6 +191,7 @@ class _HomePageState extends State<HomePage> {
       _corridaId = null;
       _rota = null;
       _destinoLL = null;
+      _valor = null;
     });
     if (_posicao != null) {
       _mapa?.animateCamera(CameraUpdate.newLatLngZoom(_posicao!, 15));
@@ -156,7 +217,7 @@ class _HomePageState extends State<HomePage> {
                 const CameraPosition(target: _centroPiracicaba, zoom: 13),
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
-            padding: const EdgeInsets.only(bottom: 170),
+            padding: EdgeInsets.only(bottom: _rota != null ? 320 : 170),
             polylines: {
               if (_rota != null)
                 Polyline(
@@ -171,7 +232,7 @@ class _HomePageState extends State<HomePage> {
                 Marker(
                   markerId: const MarkerId('destino'),
                   position: _destinoLL!,
-                  infoWindow: InfoWindow(title: _destino.text),
+                  infoWindow: InfoWindow(title: _destinoTexto),
                 ),
             },
             onMapCreated: (c) => _mapa = c,
@@ -182,7 +243,9 @@ class _HomePageState extends State<HomePage> {
               margin: const EdgeInsets.all(12),
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: _corridaId == null ? _formPedido() : _painelCorrida(),
+                child: _corridaId != null
+                    ? _painelCorrida()
+                    : (_rota != null ? _resumo() : _formDestino()),
               ),
             ),
           ),
@@ -191,7 +254,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _formPedido() {
+  Widget _formDestino() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -206,10 +269,64 @@ class _HomePageState extends State<HomePage> {
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: _pedindo || _posicao == null ? null : _pedirCorrida,
+            onPressed: _calculando || _posicao == null ? null : _calcular,
             child: Text(_posicao == null
                 ? 'Obtendo localização...'
+                : (_calculando ? 'Calculando...' : 'Ver valor da corrida')),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _resumo() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Destino: $_destinoTexto',
+            style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 2),
+        Text(_rota!.resumo),
+        const SizedBox(height: 4),
+        Text(
+          'Valor: ${_real(_valor!)}',
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        const Text('Forma de pagamento'),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final e in _formas.entries)
+              ChoiceChip(
+                avatar: Icon(_icones[e.key], size: 18),
+                label: Text(e.value),
+                selected: _pagamento == e.key,
+                onSelected: (_) => setState(() => _pagamento = e.key),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'O pagamento é feito direto ao motorista no fim da corrida.',
+          style: TextStyle(fontSize: 12, color: Colors.black54),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: _pedindo || _pagamento == null ? null : _pedirCorrida,
+            child: Text(_pagamento == null
+                ? 'Escolha a forma de pagamento'
                 : 'Pedir corrida'),
+          ),
+        ),
+        Center(
+          child: TextButton(
+            onPressed: _alterarDestino,
+            child: const Text('Alterar destino'),
           ),
         ),
       ],
@@ -224,6 +341,8 @@ class _HomePageState extends State<HomePage> {
         if (dados == null) return const LinearProgressIndicator();
         final status = dados['status'] as String;
         final encerrada = status == 'finalizada' || status == 'cancelada';
+        final valor = (dados['valor'] as num?)?.toDouble();
+        final forma = _nomesPagamento[dados['pagamento']];
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -231,6 +350,8 @@ class _HomePageState extends State<HomePage> {
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             Text('Destino: ${dados['destinoTexto']}'),
+            if (valor != null)
+              Text('${_real(valor)}${forma != null ? ' • $forma' : ''}'),
             if (_rota != null) Text('Trajeto: ${_rota!.resumo}'),
             const SizedBox(height: 12),
             if (encerrada)
