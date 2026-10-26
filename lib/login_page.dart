@@ -345,6 +345,22 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ],
         ),
+        const SizedBox(height: 28),
+        const Center(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: 'Desenvolvido por '),
+                TextSpan(
+                    text: 'Geanderson Alves',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+                TextSpan(text: '  @GeanAlves'),
+              ],
+            ),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, color: Color(0xFF8A94A6)),
+          ),
+        ),
       ],
     );
   }
