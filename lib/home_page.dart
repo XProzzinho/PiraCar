@@ -281,7 +281,33 @@ class _HomePageState extends State<HomePage> {
           _rota != null) {
         _ajustarCamera(_rota!.pontos);
       }
+      if (status == 'finalizada' &&
+          anterior != null &&
+          anterior != 'finalizada' &&
+          d['avaliacaoMotorista'] == null) {
+        _avaliarMotorista(id);
+      }
     });
+  }
+
+  // Ao fim da corrida, o passageiro dá de 1 a 5 estrelas ao motorista.
+  // A nota fica na corrida e aparece no perfil do motorista no admin.
+  Future<void> _avaliarMotorista(String corridaId) async {
+    final nota = await showDialog<int>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _AvaliacaoDialog(),
+    );
+    if (nota == null) return;
+    try {
+      await _db.collection('corridas').doc(corridaId).update({
+        'avaliacaoMotorista': nota,
+        'motoristaAvaliadoEm': FieldValue.serverTimestamp(),
+      });
+      _aviso('Obrigado pela avaliação!');
+    } catch (e) {
+      _aviso('Não foi possível salvar a avaliação: $e');
+    }
   }
 
   // Rota do motorista até o passageiro. Recalcula só se o motorista andou
@@ -545,6 +571,63 @@ class _HomePageState extends State<HomePage> {
           ],
         );
       },
+    );
+  }
+}
+
+class _AvaliacaoDialog extends StatefulWidget {
+  const _AvaliacaoDialog();
+
+  @override
+  State<_AvaliacaoDialog> createState() => _AvaliacaoDialogState();
+}
+
+class _AvaliacaoDialogState extends State<_AvaliacaoDialog> {
+  int _nota = 0;
+
+  static const _legendas = [
+    '', 'Muito ruim', 'Ruim', 'Regular', 'Bom', 'Excelente'
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Como foi o motorista?', textAlign: TextAlign.center),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 1; i <= 5; i++)
+                IconButton(
+                  tooltip: '$i ${i == 1 ? 'estrela' : 'estrelas'}',
+                  iconSize: 38,
+                  onPressed: () => setState(() => _nota = i),
+                  icon: Icon(
+                    i <= _nota
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
+                    color: const Color(0xFFFFB300),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(_legendas[_nota],
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Agora não'),
+        ),
+        FilledButton(
+          onPressed: _nota == 0 ? null : () => Navigator.pop(context, _nota),
+          child: const Text('Enviar'),
+        ),
+      ],
     );
   }
 }
