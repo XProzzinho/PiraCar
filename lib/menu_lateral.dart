@@ -3,6 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'foto.dart';
+import 'foto_trocar.dart';
+
 const azulNoite = Color(0xFF0B2545);
 const amarelo = Color(0xFFFFC24B);
 const _azul = Color(0xFF1565C0);
@@ -66,14 +69,6 @@ const _meses = [
   'jul', 'ago', 'set', 'out', 'nov', 'dez',
 ];
 
-String _iniciais(String nome) {
-  final partes = nome.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
-  if (partes.isEmpty) return '?';
-  final primeira = partes.first[0];
-  final ultima = partes.length > 1 ? partes.last[0] : '';
-  return (primeira + ultima).toUpperCase();
-}
-
 /// Menu lateral do passageiro: foto, nome, avaliação dada pelos motoristas
 /// e os dados da conta.
 class MenuLateral extends StatelessWidget {
@@ -99,6 +94,7 @@ class MenuLateral extends StatelessWidget {
             children: [
               _Cabecalho(
                 nome: nome,
+                perfil: perfil,
                 fotoUrl: user.photoURL,
                 desde: criadoEm is Timestamp ? criadoEm.toDate() : null,
               ),
@@ -164,9 +160,11 @@ class MenuLateral extends StatelessWidget {
 }
 
 class _Cabecalho extends StatelessWidget {
-  const _Cabecalho({required this.nome, this.fotoUrl, this.desde});
+  const _Cabecalho(
+      {required this.nome, required this.perfil, this.fotoUrl, this.desde});
 
   final String nome;
+  final Map<String, dynamic> perfil;
   final String? fotoUrl;
   final DateTime? desde;
 
@@ -182,19 +180,31 @@ class _Cabecalho extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration:
-                const BoxDecoration(color: amarelo, shape: BoxShape.circle),
-            child: CircleAvatar(
-              radius: 32,
-              backgroundColor: const Color(0xFF1B3A63),
-              foregroundImage: fotoUrl != null ? NetworkImage(fotoUrl!) : null,
-              child: Text(_iniciais(nome),
-                  style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white)),
+          GestureDetector(
+            onTap: () => trocarFotoPerfil(context),
+            child: Stack(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                      color: amarelo, shape: BoxShape.circle),
+                  child: FotoPerfil(
+                      dados: {...perfil, 'nome': nome},
+                      raio: 32,
+                      fotoUrl: fotoUrl),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle),
+                    child: const Icon(Icons.photo_camera,
+                        size: 14, color: azulNoite),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 14),

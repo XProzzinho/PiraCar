@@ -8,6 +8,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import 'foto.dart';
 import 'menu_lateral.dart';
 import 'rota.dart';
 
@@ -551,6 +552,9 @@ class _HomePageState extends State<HomePage> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if ((status == 'aceita' || status == 'em_andamento') &&
+                dados['motoristaId'] is String)
+              _CartaoMotorista(uid: dados['motoristaId'] as String),
             Text(_statusTexto[status] ?? status,
                 style: Theme.of(context).textTheme.titleMedium),
             if (status == 'aceita')
@@ -628,6 +632,103 @@ class _AvaliacaoDialogState extends State<_AvaliacaoDialog> {
           child: const Text('Enviar'),
         ),
       ],
+    );
+  }
+}
+
+/// Foto, nome, nota e carro do motorista que aceitou a corrida.
+class _CartaoMotorista extends StatelessWidget {
+  const _CartaoMotorista({required this.uid});
+
+  final String uid;
+
+  @override
+  Widget build(BuildContext context) {
+    final db = FirebaseFirestore.instance;
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: db.collection('users').doc(uid).snapshots(),
+      builder: (context, snap) {
+        final m = snap.data?.data();
+        if (m == null) return const SizedBox.shrink();
+        final nome = (m['nome'] ?? 'Motorista').toString();
+        final carro = [m['carro'], m['cor']]
+            .map((v) => (v ?? '').toString().trim())
+            .where((v) => v.isNotEmpty)
+            .join(' • ');
+        final placa = (m['placa'] ?? '').toString();
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4F6FA),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              FotoPerfil(dados: m, raio: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(nome,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700)),
+                    FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      future: db
+                          .collection('corridas')
+                          .where('motoristaId', isEqualTo: uid)
+                          .get(),
+                      builder: (context, s) {
+                        final notas = (s.data?.docs ?? const [])
+                            .map((d) => d.data()['avaliacaoMotorista'])
+                            .whereType<num>()
+                            .toList();
+                        final media = notas.isEmpty
+                            ? null
+                            : notas.reduce((a, b) => a + b) / notas.length;
+                        return Row(
+                          children: [
+                            const Icon(Icons.star_rounded,
+                                size: 16, color: Color(0xFFFFB300)),
+                            const SizedBox(width: 2),
+                            Text(
+                              media == null
+                                  ? 'Novo motorista'
+                                  : media
+                                      .toStringAsFixed(1)
+                                      .replaceAll('.', ','),
+                              style: const TextStyle(color: Colors.black54),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    if (carro.isNotEmpty)
+                      Text(carro,
+                          style: const TextStyle(color: Colors.black54)),
+                  ],
+                ),
+              ),
+              if (placa.isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.black26),
+                  ),
+                  child: Text(placa.toUpperCase(),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800, letterSpacing: 1)),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
