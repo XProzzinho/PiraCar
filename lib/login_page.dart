@@ -1,6 +1,17 @@
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+const _azulNoite = Color(0xFF0B2545);
+const _azul = Color(0xFF1565C0);
+const _amarelo = Color(0xFFFFC24B);
+const _texto = Color(0xFF0F172A);
+const _textoSuave = Color(0xFF5B6577);
+const _campoFundo = Color(0xFFF4F6FA);
+const _campoBorda = Color(0xFFE2E8F0);
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,6 +26,29 @@ class _LoginPageState extends State<LoginPage> {
   final _senha = TextEditingController();
   bool _cadastro = false;
   bool _carregando = false;
+  bool _mostrarSenha = false;
+
+  @override
+  void dispose() {
+    _nome.dispose();
+    _email.dispose();
+    _senha.dispose();
+    super.dispose();
+  }
+
+  void _aviso(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _salvarPerfil(User user, String nome) {
+    return FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'nome': nome,
+      'email': user.email,
+      'role': 'passageiro',
+      'criadoEm': FieldValue.serverTimestamp(),
+    });
+  }
 
   Future<void> _enviar() async {
     setState(() => _carregando = true);
@@ -23,70 +57,127 @@ class _LoginPageState extends State<LoginPage> {
       if (_cadastro) {
         final cred = await auth.createUserWithEmailAndPassword(
             email: _email.text.trim(), password: _senha.text);
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(cred.user!.uid)
-            .set({
-          'nome': _nome.text.trim(),
-          'email': _email.text.trim(),
-          'role': 'passageiro',
-          'criadoEm': FieldValue.serverTimestamp(),
-        });
+        await _salvarPerfil(cred.user!, _nome.text.trim());
       } else {
         await auth.signInWithEmailAndPassword(
             email: _email.text.trim(), password: _senha.text);
       }
     } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message ?? 'Erro ao entrar')));
+      _aviso(e.message ?? 'Erro ao entrar');
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
   }
 
+  Future<void> _entrarComGoogle() async {
+    setState(() => _carregando = true);
+    try {
+      final cred =
+          await FirebaseAuth.instance.signInWithProvider(GoogleAuthProvider());
+      final user = cred.user!;
+      final doc =
+          FirebaseFirestore.instance.collection('users').doc(user.uid);
+      if (!(await doc.get()).exists) {
+        await _salvarPerfil(user, user.displayName ?? '');
+      }
+    } on FirebaseAuthException catch (e) {
+      _aviso(e.message ?? 'Erro ao entrar com Google');
+    } finally {
+      if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  Future<void> _esqueciSenha() async {
+    final email = _email.text.trim();
+    if (email.isEmpty) {
+      _aviso('Digite seu e-mail para recuperar a senha');
+      return;
+    }
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      _aviso('Enviamos um link de recuperação para $email');
+    } on FirebaseAuthException catch (e) {
+      _aviso(e.message ?? 'Erro ao enviar e-mail');
+    }
+  }
+
+  InputDecoration _decoracao(String dica, IconData icone, {Widget? sufixo}) {
+    final borda = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: _campoBorda, width: 1.5),
+    );
+    return InputDecoration(
+      hintText: dica,
+      hintStyle: const TextStyle(color: Color(0xFF8A94A6)),
+      prefixIcon: Icon(icone, color: const Color(0xFF64748B), size: 20),
+      suffixIcon: sufixo,
+      filled: true,
+      fillColor: _campoFundo,
+      contentPadding: const EdgeInsets.symmetric(vertical: 16),
+      enabledBorder: borda,
+      border: borda,
+      focusedBorder: borda.copyWith(
+          borderSide: const BorderSide(color: _azul, width: 1.5)),
+    );
+  }
+
+  Widget _rotulo(String texto, {Widget? acao}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Text(texto,
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF334155))),
+          const Spacer(),
+          if (acao != null) acao,
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+    final topo = MediaQuery.paddingOf(context).top;
+    final alturaHero = 262 + topo;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: _azulNoite,
+        body: LayoutBuilder(
+          builder: (context, c) => SingleChildScrollView(
             child: Column(
               children: [
-                const Icon(Icons.local_taxi, size: 72),
-                const Text('PiraCar',
-                    style:
-                        TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 24),
-                if (_cadastro)
-                  TextField(
-                    controller: _nome,
-                    decoration: const InputDecoration(labelText: 'Nome'),
-                  ),
-                TextField(
-                  controller: _email,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'E-mail'),
-                ),
-                TextField(
-                  controller: _senha,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Senha'),
-                ),
-                const SizedBox(height: 24),
                 SizedBox(
+                  height: alturaHero,
                   width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _carregando ? null : _enviar,
-                    child: Text(_cadastro ? 'Criar conta' : 'Entrar'),
+                  child: Stack(
+                    children: [
+                      const Positioned.fill(
+                          child: CustomPaint(painter: _MapaPainter())),
+                      Positioned(
+                        left: 28,
+                        right: 28,
+                        top: topo + 64,
+                        child: const _Marca(),
+                      ),
+                    ],
                   ),
                 ),
-                TextButton(
-                  onPressed: () => setState(() => _cadastro = !_cadastro),
-                  child: Text(_cadastro
-                      ? 'Já tenho conta'
-                      : 'Não tenho conta, quero me cadastrar'),
+                Container(
+                  width: double.infinity,
+                  constraints: BoxConstraints(
+                      minHeight: math.max(0.0, c.maxHeight - alturaHero)),
+                  padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(30)),
+                  ),
+                  child: _formulario(),
                 ),
               ],
             ),
@@ -95,4 +186,334 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+
+  Widget _formulario() {
+    final botaoForma =
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(16));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: Container(
+            width: 40,
+            height: 5,
+            decoration: BoxDecoration(
+                color: _campoBorda, borderRadius: BorderRadius.circular(3)),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(_cadastro ? 'Crie sua conta' : 'Bem-vindo de volta',
+            style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                color: _texto)),
+        const SizedBox(height: 4),
+        Text(
+            _cadastro
+                ? 'Leva menos de um minuto.'
+                : 'Entre para pedir sua próxima viagem.',
+            style: const TextStyle(fontSize: 15, color: _textoSuave)),
+        const SizedBox(height: 20),
+        if (_cadastro) ...[
+          _rotulo('Nome'),
+          TextField(
+            controller: _nome,
+            textCapitalization: TextCapitalization.words,
+            decoration: _decoracao('Seu nome', Icons.person_outline),
+          ),
+          const SizedBox(height: 16),
+        ],
+        _rotulo('E-mail'),
+        TextField(
+          controller: _email,
+          keyboardType: TextInputType.emailAddress,
+          autofillHints: const [AutofillHints.email],
+          decoration: _decoracao('voce@email.com', Icons.mail_outline),
+        ),
+        const SizedBox(height: 16),
+        _rotulo(
+          'Senha',
+          acao: _cadastro
+              ? null
+              : GestureDetector(
+                  onTap: _esqueciSenha,
+                  child: const Text('Esqueci a senha',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _azul)),
+                ),
+        ),
+        TextField(
+          controller: _senha,
+          obscureText: !_mostrarSenha,
+          autofillHints: const [AutofillHints.password],
+          decoration: _decoracao(
+            'Sua senha',
+            Icons.lock_outline,
+            sufixo: IconButton(
+              tooltip: _mostrarSenha ? 'Ocultar senha' : 'Mostrar senha',
+              icon: Icon(
+                  _mostrarSenha
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: const Color(0xFF64748B),
+                  size: 20),
+              onPressed: () => setState(() => _mostrarSenha = !_mostrarSenha),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 54,
+          child: FilledButton(
+            onPressed: _carregando ? null : _enviar,
+            style: FilledButton.styleFrom(
+              backgroundColor: _azul,
+              shape: botaoForma,
+              textStyle:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            child: _carregando
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.5, color: Colors.white))
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(_cadastro ? 'Criar conta' : 'Entrar'),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward, size: 18),
+                    ],
+                  ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Row(
+          children: [
+            Expanded(child: Divider(color: _campoBorda)),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text('ou continue com',
+                  style: TextStyle(fontSize: 13, color: _textoSuave)),
+            ),
+            Expanded(child: Divider(color: _campoBorda)),
+          ],
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 54,
+          child: OutlinedButton(
+            onPressed: _carregando ? null : _entrarComGoogle,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF1F1F1F),
+              side: const BorderSide(color: Color(0xFFDADCE0), width: 1.5),
+              shape: botaoForma,
+              textStyle:
+                  const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CustomPaint(painter: _GooglePainter())),
+                SizedBox(width: 12),
+                Text('Entrar com Google'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(_cadastro ? 'Já tem conta? ' : 'Ainda não tem conta? ',
+                style: const TextStyle(fontSize: 14, color: _textoSuave)),
+            GestureDetector(
+              onTap: () => setState(() => _cadastro = !_cadastro),
+              child: Text(_cadastro ? 'Entrar' : 'Cadastre-se',
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: _azul)),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _Marca extends StatelessWidget {
+  const _Marca();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _amarelo,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: const [
+                  BoxShadow(
+                      color: Color(0x40000000),
+                      blurRadius: 20,
+                      offset: Offset(0, 8)),
+                ],
+              ),
+              child: const Icon(Icons.location_on_outlined,
+                  color: _azulNoite, size: 28),
+            ),
+            const SizedBox(width: 12),
+            const Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: 'Pira', style: TextStyle(color: Colors.white)),
+                  TextSpan(text: 'Car', style: TextStyle(color: _amarelo)),
+                ],
+              ),
+              style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.8),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        const SizedBox(
+          width: 260,
+          child: Text(
+            'Sua cidade, no seu ritmo. Chegue aonde quiser com segurança.',
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+                color: Color(0xFFC9D6EA)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Mapa estilizado do topo: ruas, rio e uma rota tracejada até o destino.
+/// Desenhado numa grade de 390x300 e escalado para a largura da tela.
+class _MapaPainter extends CustomPainter {
+  const _MapaPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.width / 390;
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    canvas.translate(0, size.height - 300 * s);
+    canvas.scale(s);
+
+    final ruaLarga = Paint()
+      ..color = const Color(0xFF1B3A63)
+      ..strokeWidth = 10
+      ..strokeCap = StrokeCap.round;
+    final ruaFina = Paint()
+      ..color = const Color(0xFF163357)
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+
+    void rua(Paint p, double x1, double y1, double x2, double y2) =>
+        canvas.drawLine(Offset(x1, y1), Offset(x2, y2), p);
+
+    rua(ruaLarga, -20, 60, 410, 40);
+    rua(ruaLarga, -20, 150, 410, 175);
+    rua(ruaLarga, 70, -400, 95, 320);
+    rua(ruaLarga, 250, -400, 230, 320);
+    rua(ruaLarga, 330, -400, 360, 320);
+    rua(ruaFina, -20, 105, 410, 110);
+    rua(ruaFina, 160, -400, 170, 320);
+    rua(ruaFina, 20, 230, 410, 215);
+
+    final rio = Path()
+      ..moveTo(-30, 260)
+      ..cubicTo(60, 210, 120, 290, 210, 245)
+      ..cubicTo(300, 200, 340, 205, 420, 250);
+    canvas.drawPath(
+        rio,
+        Paint()
+          ..color = const Color(0x8C1E5A9A)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 22
+          ..strokeCap = StrokeCap.round);
+
+    final rota = Path()
+      ..moveTo(95, 150)
+      ..cubicTo(140, 160, 165, 120, 170, 105)
+      ..cubicTo(175, 90, 225, 60, 248, 60)
+      ..lineTo(330, 45);
+    final pontilhado = Paint()
+      ..color = _amarelo
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+    for (final m in rota.computeMetrics()) {
+      for (double d = 0; d < m.length; d += 11) {
+        canvas.drawPath(m.extractPath(d, d + 2), pontilhado);
+      }
+    }
+
+    canvas.drawCircle(const Offset(95, 150), 9, Paint()..color = _azulNoite);
+    canvas.drawCircle(
+        const Offset(95, 150),
+        9,
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4);
+    canvas.drawCircle(
+        const Offset(330, 45), 16, Paint()..color = const Color(0x40FFC24B));
+    canvas.drawCircle(const Offset(330, 45), 8, Paint()..color = _amarelo);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Logo "G" do Google desenhado em quatro arcos coloridos.
+class _GooglePainter extends CustomPainter {
+  const _GooglePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final traco = w * 0.2;
+    final rect = Rect.fromCircle(
+        center: Offset(w / 2, w / 2), radius: (w - traco) / 2);
+    Paint cor(int c) => Paint()
+      ..color = Color(c)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = traco;
+
+    const grau = math.pi / 180;
+    canvas.drawArc(rect, -40 * grau, -100 * grau, false, cor(0xFFEA4335));
+    canvas.drawArc(rect, -140 * grau, -80 * grau, false, cor(0xFFFBBC05));
+    canvas.drawArc(rect, 140 * grau, -95 * grau, false, cor(0xFF34A853));
+    canvas.drawArc(rect, 45 * grau, -45 * grau, false, cor(0xFF4285F4));
+    canvas.drawRect(
+        Rect.fromLTWH(w / 2, w / 2 - traco / 2, w / 2 - traco / 4, traco),
+        Paint()..color = const Color(0xFF4285F4));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
