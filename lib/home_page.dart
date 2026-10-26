@@ -8,6 +8,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import 'menu_lateral.dart';
 import 'rota.dart';
 
 // Preço: valor fixo até 3 km; depois, valor por km extra (proporcional).
@@ -346,14 +347,19 @@ class _HomePageState extends State<HomePage> {
         !_rotaMotorista!.estimada;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PiraCar'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => FirebaseAuth.instance.signOut(),
+        title: const MarcaPiraCar(),
+        centerTitle: true,
+        backgroundColor: azulNoite,
+        foregroundColor: Colors.white,
+        leading: Builder(
+          builder: (context) => IconButton(
+            tooltip: 'Menu',
+            icon: const Icon(Icons.menu_rounded),
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
-        ],
+        ),
       ),
+      drawer: const MenuLateral(),
       body: Stack(
         children: [
           GoogleMap(
