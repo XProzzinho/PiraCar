@@ -160,7 +160,7 @@ class _HomePageState extends State<HomePage> {
     final ll = LatLng(p.latitude, p.longitude);
     if (!mounted) return;
     setState(() => _posicao = ll);
-    _mapa?.animateCamera(CameraUpdate.newLatLngZoom(ll, 15));
+    _mapa?.animateCamera(CameraUpdate.newLatLngZoom(ll, 17));
   }
 
   void _ajustarCamera(List<LatLng> pts) {
@@ -340,7 +340,7 @@ class _HomePageState extends State<HomePage> {
       _valor = null;
     });
     if (_posicao != null) {
-      _mapa?.animateCamera(CameraUpdate.newLatLngZoom(_posicao!, 15));
+      _mapa?.animateCamera(CameraUpdate.newLatLngZoom(_posicao!, 17));
     }
   }
 
@@ -361,7 +361,7 @@ class _HomePageState extends State<HomePage> {
       _valor = null;
     });
     if (_posicao != null) {
-      _mapa?.animateCamera(CameraUpdate.newLatLngZoom(_posicao!, 15));
+      _mapa?.animateCamera(CameraUpdate.newLatLngZoom(_posicao!, 17));
     }
   }
 
@@ -390,7 +390,7 @@ class _HomePageState extends State<HomePage> {
         children: [
           GoogleMap(
             initialCameraPosition:
-                const CameraPosition(target: _centroPirapora, zoom: 13),
+                const CameraPosition(target: _centroPirapora, zoom: 15),
             myLocationEnabled: false,
             myLocationButtonEnabled: false,
             padding: EdgeInsets.only(bottom: _rota != null ? 340 : 170),
