@@ -9,8 +9,16 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'rota.dart';
 
-// Preço por quilômetro (em reais). Para mudar o valor, altere aqui.
-const _precoPorKm = 3.0;
+// Preço: valor fixo até 3 km; depois, valor por km extra (proporcional).
+const _valorBase = 10.0;
+const _kmIncluidos = 3.0;
+const _precoKmExtra = 1.76;
+
+double _calcularValor(double km) {
+  if (km <= _kmIncluidos) return _valorBase;
+  return double.parse(
+      (_valorBase + (km - _kmIncluidos) * _precoKmExtra).toStringAsFixed(2));
+}
 
 String _real(double v) => 'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
 
@@ -86,9 +94,11 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  void _aviso(String msg) {
+  void _aviso(String msg, {int segundos = 4}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: Duration(seconds: segundos)),
+    );
   }
 
   Future<void> _localizar() async {
@@ -135,19 +145,25 @@ class _HomePageState extends State<HomePage> {
       final locs = await locationFromAddress('$texto, Pirapora, MG');
       if (locs.isEmpty) throw 'Endereço não encontrado';
       final destino = LatLng(locs.first.latitude, locs.first.longitude);
-      final rota = await buscarRota(_posicao!, destino);
-      if (rota == null) {
-        throw 'Não foi possível traçar a rota. Tente novamente.';
-      }
+
+      // Tenta a rota exata; se falhar, usa uma distância estimada.
+      final exata = await buscarRota(_posicao!, destino);
+      final rota = exata ?? rotaEstimada(_posicao!, destino);
       if (!mounted) return;
-      final km = rota.metros / 1000;
+
       setState(() {
         _destinoLL = destino;
         _destinoTexto = texto;
         _rota = rota;
-        _valor = double.parse((km * _precoPorKm).toStringAsFixed(2));
+        _valor = _calcularValor(rota.metros / 1000);
       });
       _ajustarCamera(rota.pontos);
+      if (exata == null) {
+        _aviso(
+          'Não consegui a rota exata ($erroRota). Usando distância estimada.',
+          segundos: 10,
+        );
+      }
     } catch (e) {
       _aviso('$e');
     } finally {
@@ -179,8 +195,8 @@ class _HomePageState extends State<HomePage> {
       _limparAcompanhamento();
       setState(() => _corridaId = ref.id);
       _ouvirCorrida(ref.id);
-    } catch (_) {
-      _aviso('Não foi possível pedir a corrida.');
+    } catch (e) {
+      _aviso('Não foi possível pedir a corrida: $e', segundos: 10);
     } finally {
       if (mounted) setState(() => _pedindo = false);
     }
@@ -234,9 +250,10 @@ class _HomePageState extends State<HomePage> {
     if (_rotaMotorista != null && !longe) return;
     _rotaTentativa = agora;
     _buscandoRota = true;
-    final rota = await buscarRota(pos, _posicao!);
+    final exata = await buscarRota(pos, _posicao!);
     _buscandoRota = false;
-    if (!mounted || rota == null || _status != 'aceita') return;
+    if (!mounted || _status != 'aceita') return;
+    final rota = exata ?? rotaEstimada(pos, _posicao!);
     final primeira = _rotaMotorista == null;
     _rotaOrigem = pos;
     setState(() => _rotaMotorista = rota);
@@ -295,7 +312,7 @@ class _HomePageState extends State<HomePage> {
                 const CameraPosition(target: _centroPiracicaba, zoom: 13),
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
-            padding: EdgeInsets.only(bottom: _rota != null ? 320 : 170),
+            padding: EdgeInsets.only(bottom: _rota != null ? 340 : 170),
             polylines: {
               if (_status == 'aceita' && _rotaMotorista != null)
                 Polyline(
@@ -393,6 +410,10 @@ class _HomePageState extends State<HomePage> {
         Text(
           'Valor: ${_real(_valor!)}',
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          'Até 3 km: ${_real(_valorBase)} • depois ${_real(_precoKmExtra)} por km',
+          style: const TextStyle(fontSize: 12, color: Colors.black54),
         ),
         const SizedBox(height: 10),
         const Text('Forma de pagamento'),
