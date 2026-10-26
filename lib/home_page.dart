@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +36,15 @@ class _HomePageState extends State<HomePage> {
   bool _calculando = false;
   bool _pedindo = false;
 
+  // Acompanhamento do motorista em tempo real
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _subCorrida;
+  String? _status;
+  LatLng? _motorista;
+  Rota? _rotaMotorista;
+  LatLng? _rotaOrigem;
+  DateTime _rotaTentativa = DateTime.fromMillisecondsSinceEpoch(0);
+  bool _buscandoRota = false;
+
   final _db = FirebaseFirestore.instance;
   final _uid = FirebaseAuth.instance.currentUser!.uid;
 
@@ -67,6 +78,12 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _localizar();
+  }
+
+  @override
+  void dispose() {
+    _subCorrida?.cancel();
+    super.dispose();
   }
 
   void _aviso(String msg) {
@@ -159,12 +176,71 @@ class _HomePageState extends State<HomePage> {
         'status': 'solicitada',
         'criadoEm': FieldValue.serverTimestamp(),
       });
+      _limparAcompanhamento();
       setState(() => _corridaId = ref.id);
+      _ouvirCorrida(ref.id);
     } catch (_) {
       _aviso('Não foi possível pedir a corrida.');
     } finally {
       if (mounted) setState(() => _pedindo = false);
     }
+  }
+
+  void _limparAcompanhamento() {
+    _subCorrida?.cancel();
+    _subCorrida = null;
+    _status = null;
+    _motorista = null;
+    _rotaMotorista = null;
+    _rotaOrigem = null;
+    _rotaTentativa = DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  // Fica ouvindo a corrida: status e posição do motorista.
+  void _ouvirCorrida(String id) {
+    _subCorrida = _db.collection('corridas').doc(id).snapshots().listen((doc) {
+      final d = doc.data();
+      if (d == null || !mounted) return;
+      final status = d['status'] as String;
+      final gp = d['motoristaPos'];
+      final pos = gp is GeoPoint ? LatLng(gp.latitude, gp.longitude) : null;
+      final anterior = _status;
+      setState(() {
+        _status = status;
+        _motorista = pos;
+        if (status != 'aceita') _rotaMotorista = null;
+      });
+      if (status == 'aceita' && pos != null) {
+        _atualizarRotaMotorista(pos);
+      }
+      if (status == 'em_andamento' &&
+          anterior != 'em_andamento' &&
+          _rota != null) {
+        _ajustarCamera(_rota!.pontos);
+      }
+    });
+  }
+
+  // Rota do motorista até o passageiro. Recalcula só se o motorista andou
+  // mais de 200 m, e no máximo a cada 10 segundos.
+  Future<void> _atualizarRotaMotorista(LatLng pos) async {
+    if (_buscandoRota || _posicao == null) return;
+    final agora = DateTime.now();
+    if (agora.difference(_rotaTentativa).inSeconds < 10) return;
+    final longe = _rotaOrigem == null ||
+        Geolocator.distanceBetween(_rotaOrigem!.latitude,
+                _rotaOrigem!.longitude, pos.latitude, pos.longitude) >
+            200;
+    if (_rotaMotorista != null && !longe) return;
+    _rotaTentativa = agora;
+    _buscandoRota = true;
+    final rota = await buscarRota(pos, _posicao!);
+    _buscandoRota = false;
+    if (!mounted || rota == null || _status != 'aceita') return;
+    final primeira = _rotaMotorista == null;
+    _rotaOrigem = pos;
+    setState(() => _rotaMotorista = rota);
+    if (primeira) _ajustarCamera(rota.pontos);
   }
 
   void _alterarDestino() {
@@ -187,6 +263,7 @@ class _HomePageState extends State<HomePage> {
 
   void _novaCorrida() {
     _destino.clear();
+    _limparAcompanhamento();
     setState(() {
       _corridaId = null;
       _rota = null;
@@ -200,6 +277,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final emCorrida = _status == 'aceita' || _status == 'em_andamento';
     return Scaffold(
       appBar: AppBar(
         title: const Text('PiraCar'),
@@ -219,7 +297,14 @@ class _HomePageState extends State<HomePage> {
             myLocationButtonEnabled: false,
             padding: EdgeInsets.only(bottom: _rota != null ? 320 : 170),
             polylines: {
-              if (_rota != null)
+              if (_status == 'aceita' && _rotaMotorista != null)
+                Polyline(
+                  polylineId: const PolylineId('motorista'),
+                  points: _rotaMotorista!.pontos,
+                  width: 6,
+                  color: Colors.green,
+                )
+              else if (_rota != null)
                 Polyline(
                   polylineId: const PolylineId('rota'),
                   points: _rota!.pontos,
@@ -233,6 +318,22 @@ class _HomePageState extends State<HomePage> {
                   markerId: const MarkerId('destino'),
                   position: _destinoLL!,
                   infoWindow: InfoWindow(title: _destinoTexto),
+                ),
+              if (_corridaId != null && _posicao != null)
+                Marker(
+                  markerId: const MarkerId('origem'),
+                  position: _posicao!,
+                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                      BitmapDescriptor.hueAzure),
+                  infoWindow: const InfoWindow(title: 'Você'),
+                ),
+              if (_motorista != null && emCorrida)
+                Marker(
+                  markerId: const MarkerId('motorista'),
+                  position: _motorista!,
+                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                      BitmapDescriptor.hueGreen),
+                  infoWindow: const InfoWindow(title: 'Motorista'),
                 ),
             },
             onMapCreated: (c) => _mapa = c,
@@ -348,11 +449,14 @@ class _HomePageState extends State<HomePage> {
           children: [
             Text(_statusTexto[status] ?? status,
                 style: Theme.of(context).textTheme.titleMedium),
+            if (status == 'aceita')
+              Text(_rotaMotorista != null
+                  ? 'Motorista a ${_rotaMotorista!.resumo}'
+                  : 'Localizando o motorista...'),
             const SizedBox(height: 4),
             Text('Destino: ${dados['destinoTexto']}'),
             if (valor != null)
               Text('${_real(valor)}${forma != null ? ' • $forma' : ''}'),
-            if (_rota != null) Text('Trajeto: ${_rota!.resumo}'),
             const SizedBox(height: 12),
             if (encerrada)
               FilledButton(
