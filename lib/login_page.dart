@@ -361,11 +361,10 @@ class _Marca extends StatelessWidget {
         Row(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
-                color: _amarelo,
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: const [
                   BoxShadow(
                       color: Color(0x40000000),
@@ -373,8 +372,10 @@ class _Marca extends StatelessWidget {
                       offset: Offset(0, 8)),
                 ],
               ),
-              child: const Icon(Icons.location_on_outlined,
-                  color: _azulNoite, size: 28),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset('assets/logo.png', fit: BoxFit.cover),
+              ),
             ),
             const SizedBox(width: 12),
             const Text.rich(
