@@ -8,16 +8,16 @@ import 'login_page.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(const PiraCarApp());
+  runApp(const PiraCarMotoristaApp());
 }
 
-class PiraCarApp extends StatelessWidget {
-  const PiraCarApp({super.key});
+class PiraCarMotoristaApp extends StatelessWidget {
+  const PiraCarMotoristaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PiraCar',
+      title: 'PiraCar Motorista',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorSchemeSeed: const Color(0xFF1E88E5),
