@@ -16,6 +16,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.24.5"
@@ -42,6 +46,11 @@ jobs:
           flutter create --platforms=android --org com.piracar --project-name piracar_passageiro .
           rm -rf lib pubspec.yaml
           cp -r /tmp/bak/lib /tmp/bak/pubspec.yaml .
+
+      - name: Gerar ícones e logo
+        run: |
+          pip install pillow
+          python3 tool/icone.py
 
       - name: Configurar Android (Maps, Firebase)
         env:
