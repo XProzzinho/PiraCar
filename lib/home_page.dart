@@ -579,43 +579,6 @@ class _HomePageState extends State<HomePage> {
             },
             onMapCreated: (c) => _mapa = c,
           ),
-          if (!emCorrida)
-            Positioned(
-              top: 12,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 6)
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.directions_car,
-                          size: 18,
-                          color: livres.isEmpty
-                              ? Colors.black38
-                              : Colors.green.shade700),
-                      const SizedBox(width: 6),
-                      Text(
-                        livres.isEmpty
-                            ? 'Nenhum motorista disponível agora'
-                            : '${livres.length} '
-                                '${livres.length == 1 ? 'motorista disponível' : 'motoristas disponíveis'}',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
           Align(
             alignment: Alignment.bottomCenter,
             child: Card(
