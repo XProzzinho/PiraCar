@@ -52,6 +52,90 @@ Future<BitmapDescriptor> _criarIcone(IconData icone, Color cor,
   return BitmapDescriptor.fromBytes(bytes!.buffer.asUint8List());
 }
 
+// Carrinho visto de cima (frente para cima), para girar com a direção.
+Future<BitmapDescriptor> _criarCarroDeCima() async {
+  const w = 64.0, h = 124.0;
+  final gravador = ui.PictureRecorder();
+  final c = Canvas(gravador);
+  // sombra
+  c.drawRRect(
+    RRect.fromRectAndRadius(
+        const Rect.fromLTWH(10, 12, w - 14, h - 14), const Radius.circular(18)),
+    Paint()
+      ..color = const Color(0x55000000)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+  );
+  // retrovisores
+  final preto = Paint()..color = const Color(0xFF111827);
+  c.drawRRect(
+      RRect.fromRectAndRadius(
+          const Rect.fromLTWH(1, 40, 10, 7), const Radius.circular(3)),
+      preto);
+  c.drawRRect(
+      RRect.fromRectAndRadius(
+          const Rect.fromLTWH(w - 11, 40, 10, 7), const Radius.circular(3)),
+      preto);
+  // carroceria
+  final corpo = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(7, 4, w - 14, h - 10), const Radius.circular(18));
+  c.drawRRect(
+    corpo,
+    Paint()
+      ..shader = ui.Gradient.linear(const Offset(7, 0), const Offset(w - 7, 0),
+          [const Color(0xFF1F2937), const Color(0xFF374151), const Color(0xFF1F2937)],
+          [0, 0.5, 1]),
+  );
+  // para-brisa e vidro traseiro
+  final vidro = Paint()..color = const Color(0xFF93C5FD);
+  c.drawPath(
+      Path()
+        ..moveTo(14, 42)
+        ..lineTo(w - 14, 42)
+        ..lineTo(w - 18, 30)
+        ..quadraticBezierTo(w / 2, 24, 18, 30)
+        ..close(),
+      vidro);
+  c.drawPath(
+      Path()
+        ..moveTo(16, 90)
+        ..lineTo(w - 16, 90)
+        ..lineTo(w - 19, 99)
+        ..quadraticBezierTo(w / 2, 103, 19, 99)
+        ..close(),
+      vidro);
+  // teto
+  c.drawRRect(
+      RRect.fromRectAndRadius(
+          const Rect.fromLTWH(15, 44, w - 30, 44), const Radius.circular(8)),
+      Paint()..color = const Color(0xFF4B5563));
+  // faróis e lanternas
+  final farol = Paint()..color = const Color(0xFFFDE68A);
+  c.drawOval(const Rect.fromLTWH(12, 6, 11, 6), farol);
+  c.drawOval(const Rect.fromLTWH(w - 23, 6, 11, 6), farol);
+  final lanterna = Paint()..color = const Color(0xFFEF4444);
+  c.drawRRect(
+      RRect.fromRectAndRadius(
+          const Rect.fromLTWH(12, h - 12, 11, 4), const Radius.circular(2)),
+      lanterna);
+  c.drawRRect(
+      RRect.fromRectAndRadius(
+          const Rect.fromLTWH(w - 23, h - 12, 11, 4), const Radius.circular(2)),
+      lanterna);
+  final img = await gravador.endRecording().toImage(w.toInt(), h.toInt());
+  final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+  // ignore: deprecated_member_use
+  return BitmapDescriptor.fromBytes(bytes!.buffer.asUint8List());
+}
+
+/// Motorista online e livre, para mostrar no mapa.
+class _Livre {
+  final String id;
+  final LatLng pos;
+  final double direcao;
+  final DateTime? em;
+  _Livre(this.id, this.pos, this.direcao, this.em);
+}
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -117,15 +201,57 @@ class _HomePageState extends State<HomePage> {
     'pix': 'Pix',
   };
 
+  // Motoristas disponíveis no mapa
+  BitmapDescriptor? _iconeCarroCima;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _subLivres;
+  List<_Livre> _livres = [];
+  Timer? _relogio;
+
   @override
   void initState() {
     super.initState();
     _carregarIcones();
     _localizar();
+    _ouvirLivres();
+  }
+
+  void _ouvirLivres() {
+    _subLivres = _db
+        .collection('users')
+        .where('role', isEqualTo: 'motorista')
+        .where('online', isEqualTo: true)
+        .snapshots()
+        .listen((snap) {
+      final lista = <_Livre>[];
+      for (final d in snap.docs) {
+        final m = d.data();
+        final gp = m['posicao'];
+        if (gp is! GeoPoint) continue;
+        final em = m['posicaoEm'];
+        final dir = m['direcao'];
+        lista.add(_Livre(d.id, LatLng(gp.latitude, gp.longitude),
+            dir is num ? dir.toDouble() : 0, em is Timestamp ? em.toDate() : null));
+      }
+      if (mounted) setState(() => _livres = lista);
+    }, onError: (_) {});
+    // some com quem parou de mandar sinal (app fechado, sem internet)
+    _relogio = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  List<_Livre> get _livresAgora {
+    final agora = DateTime.now();
+    return _livres
+        .where((l) =>
+            l.em == null || agora.difference(l.em!).inMinutes.abs() < 3)
+        .toList();
   }
 
   @override
   void dispose() {
+    _subLivres?.cancel();
+    _relogio?.cancel();
     _subCorrida?.cancel();
     super.dispose();
   }
@@ -135,10 +261,12 @@ class _HomePageState extends State<HomePage> {
       final pessoa = await _criarIcone(Icons.person, Colors.blue.shade700);
       final carro =
           await _criarIcone(Icons.directions_car, Colors.green.shade700);
+      final deCima = await _criarCarroDeCima();
       if (!mounted) return;
       setState(() {
         _iconePessoa = pessoa;
         _iconeCarro = carro;
+        _iconeCarroCima = deCima;
       });
     } catch (_) {}
   }
@@ -369,6 +497,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final emCorrida = _status == 'aceita' || _status == 'em_andamento';
+    final livres = emCorrida ? const <_Livre>[] : _livresAgora;
     final mostrarRotaMotorista = _status == 'aceita' &&
         _rotaMotorista != null &&
         !_rotaMotorista!.estimada;
@@ -427,6 +556,17 @@ class _HomePageState extends State<HomePage> {
                   position: _destinoLL!,
                   infoWindow: InfoWindow(title: _destinoTexto),
                 ),
+              for (final l in livres)
+                Marker(
+                  markerId: MarkerId('livre_${l.id}'),
+                  position: l.pos,
+                  icon: _iconeCarroCima ?? _iconeCarro,
+                  flat: true,
+                  rotation: l.direcao,
+                  anchor: const Offset(0.5, 0.5),
+                  zIndex: 1,
+                  infoWindow: const InfoWindow(title: 'Motorista disponível'),
+                ),
               if (_motorista != null && emCorrida)
                 Marker(
                   markerId: const MarkerId('motorista'),
@@ -439,6 +579,43 @@ class _HomePageState extends State<HomePage> {
             },
             onMapCreated: (c) => _mapa = c,
           ),
+          if (!emCorrida)
+            Positioned(
+              top: 12,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 6)
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.directions_car,
+                          size: 18,
+                          color: livres.isEmpty
+                              ? Colors.black38
+                              : Colors.green.shade700),
+                      const SizedBox(width: 6),
+                      Text(
+                        livres.isEmpty
+                            ? 'Nenhum motorista disponível agora'
+                            : '${livres.length} '
+                                '${livres.length == 1 ? 'motorista disponível' : 'motoristas disponíveis'}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           Align(
             alignment: Alignment.bottomCenter,
             child: Card(
