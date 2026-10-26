@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,6 +23,33 @@ double _calcularValor(double km) {
 
 String _real(double v) => 'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
 
+// Desenha um ícone (carrinho, bonequinho) dentro de um círculo colorido.
+Future<BitmapDescriptor> _criarIcone(IconData icone, Color cor,
+    {double tam = 110}) async {
+  final gravador = ui.PictureRecorder();
+  final canvas = Canvas(gravador);
+  final centro = Offset(tam / 2, tam / 2);
+  canvas.drawCircle(centro, tam / 2, Paint()..color = Colors.white);
+  canvas.drawCircle(centro, tam / 2 - 7, Paint()..color = cor);
+  final tp = TextPainter(textDirection: TextDirection.ltr)
+    ..text = TextSpan(
+      text: String.fromCharCode(icone.codePoint),
+      style: TextStyle(
+        fontSize: tam * 0.58,
+        fontFamily: icone.fontFamily,
+        package: icone.fontPackage,
+        color: Colors.white,
+      ),
+    )
+    ..layout();
+  tp.paint(canvas, Offset((tam - tp.width) / 2, (tam - tp.height) / 2));
+  final img =
+      await gravador.endRecording().toImage(tam.toInt(), tam.toInt());
+  final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+  // ignore: deprecated_member_use
+  return BitmapDescriptor.fromBytes(bytes!.buffer.asUint8List());
+}
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -30,7 +58,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  static const _centroPiracicaba = LatLng(-17.3453, -44.9419);
+  static const _centroPirapora = LatLng(-17.3453, -44.9419);
 
   final _destino = TextEditingController();
   GoogleMapController? _mapa;
@@ -43,6 +71,11 @@ class _HomePageState extends State<HomePage> {
   String? _corridaId;
   bool _calculando = false;
   bool _pedindo = false;
+
+  BitmapDescriptor _iconePessoa = BitmapDescriptor.defaultMarkerWithHue(
+      BitmapDescriptor.hueAzure);
+  BitmapDescriptor _iconeCarro =
+      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
 
   // Acompanhamento do motorista em tempo real
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _subCorrida;
@@ -85,6 +118,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _carregarIcones();
     _localizar();
   }
 
@@ -92,6 +126,19 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _subCorrida?.cancel();
     super.dispose();
+  }
+
+  Future<void> _carregarIcones() async {
+    try {
+      final pessoa = await _criarIcone(Icons.person, Colors.blue.shade700);
+      final carro =
+          await _criarIcone(Icons.directions_car, Colors.green.shade700);
+      if (!mounted) return;
+      setState(() {
+        _iconePessoa = pessoa;
+        _iconeCarro = carro;
+      });
+    } catch (_) {}
   }
 
   void _aviso(String msg, {int segundos = 4}) {
@@ -136,7 +183,7 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {}
   }
 
-  // Passo 1: acha o destino, traça a rota e calcula o valor.
+  // Passo 1: acha o destino, traça a rota pelas ruas e calcula o valor.
   Future<void> _calcular() async {
     if (_posicao == null || _destino.text.trim().isEmpty) return;
     setState(() => _calculando = true);
@@ -146,7 +193,6 @@ class _HomePageState extends State<HomePage> {
       if (locs.isEmpty) throw 'Endereço não encontrado';
       final destino = LatLng(locs.first.latitude, locs.first.longitude);
 
-      // Tenta a rota exata; se falhar, usa uma distância estimada.
       final exata = await buscarRota(_posicao!, destino);
       final rota = exata ?? rotaEstimada(_posicao!, destino);
       if (!mounted) return;
@@ -157,10 +203,10 @@ class _HomePageState extends State<HomePage> {
         _rota = rota;
         _valor = _calcularValor(rota.metros / 1000);
       });
-      _ajustarCamera(rota.pontos);
+      _ajustarCamera([_posicao!, destino, ...rota.pontos]);
       if (exata == null) {
         _aviso(
-          'Não consegui a rota exata ($erroRota). Usando distância estimada.',
+          'Não consegui traçar a rota pelas ruas ($erroRota). Valor estimado.',
           segundos: 10,
         );
       }
@@ -257,7 +303,7 @@ class _HomePageState extends State<HomePage> {
     final primeira = _rotaMotorista == null;
     _rotaOrigem = pos;
     setState(() => _rotaMotorista = rota);
-    if (primeira) _ajustarCamera(rota.pontos);
+    if (primeira) _ajustarCamera([pos, _posicao!, ...rota.pontos]);
   }
 
   void _alterarDestino() {
@@ -295,6 +341,9 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final emCorrida = _status == 'aceita' || _status == 'em_andamento';
+    final mostrarRotaMotorista = _status == 'aceita' &&
+        _rotaMotorista != null &&
+        !_rotaMotorista!.estimada;
     return Scaffold(
       appBar: AppBar(
         title: const Text('PiraCar'),
@@ -309,47 +358,49 @@ class _HomePageState extends State<HomePage> {
         children: [
           GoogleMap(
             initialCameraPosition:
-                const CameraPosition(target: _centroPiracicaba, zoom: 13),
-            myLocationEnabled: true,
+                const CameraPosition(target: _centroPirapora, zoom: 13),
+            myLocationEnabled: false,
             myLocationButtonEnabled: false,
             padding: EdgeInsets.only(bottom: _rota != null ? 340 : 170),
             polylines: {
-              if (_status == 'aceita' && _rotaMotorista != null)
+              if (mostrarRotaMotorista)
                 Polyline(
                   polylineId: const PolylineId('motorista'),
                   points: _rotaMotorista!.pontos,
                   width: 6,
                   color: Colors.green,
                 )
-              else if (_rota != null)
+              else if (_rota != null && !_rota!.estimada && _status != 'aceita')
                 Polyline(
                   polylineId: const PolylineId('rota'),
                   points: _rota!.pontos,
-                  width: 5,
+                  width: 6,
                   color: Colors.blue,
                 ),
             },
             markers: {
+              if (_posicao != null)
+                Marker(
+                  markerId: const MarkerId('passageiro'),
+                  position: _posicao!,
+                  icon: _iconePessoa,
+                  anchor: const Offset(0.5, 0.5),
+                  zIndex: 2,
+                  infoWindow: const InfoWindow(title: 'Você'),
+                ),
               if (_destinoLL != null)
                 Marker(
                   markerId: const MarkerId('destino'),
                   position: _destinoLL!,
                   infoWindow: InfoWindow(title: _destinoTexto),
                 ),
-              if (_corridaId != null && _posicao != null)
-                Marker(
-                  markerId: const MarkerId('origem'),
-                  position: _posicao!,
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueAzure),
-                  infoWindow: const InfoWindow(title: 'Você'),
-                ),
               if (_motorista != null && emCorrida)
                 Marker(
                   markerId: const MarkerId('motorista'),
                   position: _motorista!,
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueGreen),
+                  icon: _iconeCarro,
+                  anchor: const Offset(0.5, 0.5),
+                  zIndex: 3,
                   infoWindow: const InfoWindow(title: 'Motorista'),
                 ),
             },
