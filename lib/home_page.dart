@@ -10,6 +10,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'aviso.dart';
 import 'foto.dart';
+import 'lugares.dart';
 import 'menu_lateral.dart';
 import 'rota.dart';
 
@@ -148,6 +149,11 @@ class _HomePageState extends State<HomePage> {
   static const _centroPirapora = LatLng(-17.3453, -44.9419);
 
   final _destino = TextEditingController();
+  final _focoBusca = FocusNode();
+  List<Sugestao> _sugestoes = [];
+  bool _buscandoSug = false;
+  Timer? _atrasoBusca;
+  int _buscaId = 0;
   GoogleMapController? _mapa;
   LatLng? _posicao;
   LatLng? _destinoLL;
@@ -251,6 +257,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    _atrasoBusca?.cancel();
+    _focoBusca.dispose();
     _subLivres?.cancel();
     _relogio?.cancel();
     _despachante?.cancel();
@@ -315,6 +323,65 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {}
   }
 
+  // ---------- Busca de destino com sugestões ----------
+
+  bool get _buscaAberta =>
+      _focoBusca.hasFocus || _destino.text.trim().isNotEmpty;
+
+  void _digitou(String texto) {
+    _atrasoBusca?.cancel();
+    setState(() {});
+    if (texto.trim().length < 3) {
+      setState(() {
+        _sugestoes = [];
+        _buscandoSug = false;
+      });
+      return;
+    }
+    setState(() => _buscandoSug = true);
+    _atrasoBusca = Timer(const Duration(milliseconds: 350), () async {
+      final id = ++_buscaId;
+      final r = await buscarSugestoes(texto, _posicao);
+      if (!mounted || id != _buscaId) return;
+      setState(() {
+        _sugestoes = r;
+        _buscandoSug = false;
+      });
+    });
+  }
+
+  void _atalho(String texto) {
+    _destino.text = texto;
+    _destino.selection = TextSelection.collapsed(offset: texto.length);
+    _focoBusca.requestFocus();
+    _digitou(texto);
+  }
+
+  void _fecharBusca() {
+    _atrasoBusca?.cancel();
+    _destino.clear();
+    _focoBusca.unfocus();
+    setState(() {
+      _sugestoes = [];
+      _buscandoSug = false;
+    });
+  }
+
+  Future<void> _escolher(Sugestao s) async {
+    _focoBusca.unfocus();
+    setState(() => _calculando = true);
+    final local = await localDaSugestao(s);
+    if (!mounted) return;
+    if (local == null) {
+      setState(() => _calculando = false);
+      _aviso('Não consegui achar esse endereço. Tente outro.');
+      return;
+    }
+    _destino.text = s.principal;
+    await _calcularPara(local, s.principal);
+    if (mounted) setState(() => _sugestoes = []);
+  }
+
   // Passo 1: acha o destino, traça a rota pelas ruas e calcula o valor.
   Future<void> _calcular() async {
     if (_posicao == null || _destino.text.trim().isEmpty) return;
@@ -324,6 +391,22 @@ class _HomePageState extends State<HomePage> {
       final locs = await locationFromAddress('$texto, Pirapora, MG');
       if (locs.isEmpty) throw 'Endereço não encontrado';
       final destino = LatLng(locs.first.latitude, locs.first.longitude);
+      await _calcularPara(destino, texto);
+    } catch (e) {
+      _aviso('$e');
+    } finally {
+      if (mounted) setState(() => _calculando = false);
+    }
+  }
+
+  Future<void> _calcularPara(LatLng destino, String texto) async {
+    if (_posicao == null) {
+      _aviso('Ainda estou pegando a sua localização.');
+      setState(() => _calculando = false);
+      return;
+    }
+    setState(() => _calculando = true);
+    try {
 
       final exata = await buscarRota(_posicao!, destino);
       final rota = exata ?? rotaEstimada(_posicao!, destino);
@@ -549,6 +632,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _alterarDestino() {
+    _fecharBusca();
     setState(() {
       _rota = null;
       _destinoLL = null;
@@ -587,20 +671,10 @@ class _HomePageState extends State<HomePage> {
     final mostrarRotaMotorista = _status == 'aceita' &&
         _rotaMotorista != null &&
         !_rotaMotorista!.estimada;
+    final altura = MediaQuery.sizeOf(context).height;
+    final buscando = _corridaId == null && _rota == null && _buscaAberta;
     return Scaffold(
-      appBar: AppBar(
-        title: const MarcaPiraCar(),
-        centerTitle: true,
-        backgroundColor: azulNoite,
-        foregroundColor: Colors.white,
-        leading: Builder(
-          builder: (context) => IconButton(
-            tooltip: 'Menu',
-            icon: const Icon(Icons.menu_rounded),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-      ),
+      resizeToAvoidBottomInset: true,
       drawer: const MenuLateral(),
       body: Stack(
         children: [
@@ -609,7 +683,8 @@ class _HomePageState extends State<HomePage> {
                 const CameraPosition(target: _centroPirapora, zoom: 15),
             myLocationEnabled: false,
             myLocationButtonEnabled: false,
-            padding: EdgeInsets.only(bottom: _rota != null ? 340 : 170),
+            padding: EdgeInsets.only(
+                top: 90, bottom: _rota != null ? 340 : 230),
             polylines: {
               if (mostrarRotaMotorista)
                 Polyline(
@@ -665,21 +740,60 @@ class _HomePageState extends State<HomePage> {
             },
             onMapCreated: (c) => _mapa = c,
           ),
-          const Positioned(
-            top: 10,
-            left: 12,
-            right: 12,
-            child: AvisoBanner(tipo: 'passageiro'),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Column(
+                children: [
+                  const _BarraTopo(),
+                  if (!buscando)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+                      child: AvisoBanner(tipo: 'passageiro'),
+                    ),
+                ],
+              ),
+            ),
           ),
           Align(
             alignment: Alignment.bottomCenter,
-            child: Card(
-              margin: const EdgeInsets.all(12),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: _corridaId != null
-                    ? _painelCorrida()
-                    : (_rota != null ? _resumo() : _formDestino()),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              width: double.infinity,
+              constraints: BoxConstraints(
+                  maxHeight: buscando ? altura * 0.78 : altura * 0.6),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 14)],
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 10, bottom: 4),
+                      width: 40,
+                      height: 5,
+                      decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(3)),
+                    ),
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 6, 18, 16),
+                        child: _corridaId != null
+                            ? SingleChildScrollView(child: _painelCorrida())
+                            : (_rota != null
+                                ? SingleChildScrollView(child: _resumo())
+                                : _buscaDestino(livres.length)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -688,28 +802,198 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _formDestino() {
+  Widget _buscaDestino(int motoristas) {
+    final aberta = _buscaAberta;
+    final borda = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: azulNoite, width: 2),
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const Text('Para onde vamos?',
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: azulNoite,
+                letterSpacing: -0.3)),
+        const SizedBox(height: 10),
         TextField(
           controller: _destino,
-          decoration: const InputDecoration(
-            labelText: 'Para onde vamos?',
-            prefixIcon: Icon(Icons.place),
+          focusNode: _focoBusca,
+          onTap: () => setState(() {}),
+          onChanged: _digitou,
+          onSubmitted: (_) => _calcular(),
+          textInputAction: TextInputAction.search,
+          textCapitalization: TextCapitalization.words,
+          style: const TextStyle(fontSize: 17),
+          decoration: InputDecoration(
+            hintText: 'Buscar destino',
+            prefixIcon: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: const BoxDecoration(
+                    color: azulNoite, shape: BoxShape.circle),
+                child: const Icon(Icons.circle, size: 8, color: amarelo),
+              ),
+            ),
+            suffixIcon: aberta
+                ? IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: _fecharBusca,
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(vertical: 18),
+            filled: true,
+            fillColor: Colors.white,
+            enabledBorder: borda,
+            border: borda,
+            focusedBorder: borda.copyWith(
+                borderSide: const BorderSide(color: Color(0xFF1E88E5), width: 2)),
           ),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: _calculando || _posicao == null ? null : _calcular,
-            child: Text(_posicao == null
-                ? 'Obtendo localização...'
-                : (_calculando ? 'Calculando...' : 'Ver valor da corrida')),
+        if (_calculando)
+          const Padding(
+            padding: EdgeInsets.only(top: 10),
+            child: LinearProgressIndicator(),
           ),
-        ),
+        if (!aberta) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _Atalho('🚌', 'Rodoviária', () => _atalho('Rodoviária de Pirapora')),
+              _Atalho('🏥', 'Hospital', () => _atalho('Hospital Pirapora')),
+              _Atalho('🛒', 'Centro', () => _atalho('Centro, Pirapora')),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.circle,
+                  size: 10,
+                  color: motoristas > 0 ? const Color(0xFF2E7D32) : Colors.black26),
+              const SizedBox(width: 6),
+              Text(
+                _posicao == null
+                    ? 'Pegando sua localização...'
+                    : motoristas == 0
+                        ? 'Nenhum motorista perto agora'
+                        : '$motoristas ${motoristas == 1 ? 'motorista' : 'motoristas'} perto de você',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: motoristas > 0
+                        ? const Color(0xFF2E7D32)
+                        : Colors.black54),
+              ),
+            ],
+          ),
+        ] else
+          Flexible(child: _listaSugestoes()),
       ],
+    );
+  }
+
+  Widget _listaSugestoes() {
+    final texto = _destino.text.trim();
+    if (texto.length < 3) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 18),
+        child: Text('Digite pelo menos 3 letras do endereço.',
+            style: TextStyle(color: Colors.black54)),
+      );
+    }
+    if (_buscandoSug && _sugestoes.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 18),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_sugestoes.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 18),
+        child: Text('Nada encontrado para "$texto". Tente outro endereço.',
+            style: const TextStyle(color: Colors.black54)),
+      );
+    }
+    return ListView(
+      shrinkWrap: true,
+      padding: const EdgeInsets.only(top: 6),
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(4, 8, 4, 4),
+          child: Text('SUGESTÕES',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: Colors.black54)),
+        ),
+        for (final s in _sugestoes) _itemSugestao(s),
+      ],
+    );
+  }
+
+  Widget _itemSugestao(Sugestao s) {
+    final n = s.destaque.clamp(0, s.principal.length);
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: _calculando ? null : () => _escolher(s),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFFEEF0F3))),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: const BoxDecoration(
+                  color: Color(0xFFEEF2F7), shape: BoxShape.circle),
+              child: const Icon(Icons.place, color: Color(0xFFE53935), size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text.rich(
+                    TextSpan(children: [
+                      TextSpan(
+                          text: s.principal.substring(0, n),
+                          style: const TextStyle(color: Color(0xFF1565C0))),
+                      TextSpan(text: s.principal.substring(n)),
+                    ]),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                  if (s.secundario.isNotEmpty)
+                    Text(s.secundario,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.black54)),
+                ],
+              ),
+            ),
+            if (s.metros != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                    '${(s.metros! / 1000).toStringAsFixed(1).replaceAll('.', ',')} km',
+                    style:
+                        const TextStyle(fontSize: 12, color: Colors.black54)),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -961,6 +1245,93 @@ class _CartaoMotorista extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Barra branca arredondada no topo: menu, PiraCar e a foto da pessoa.
+class _BarraTopo extends StatelessWidget {
+  const _BarraTopo();
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2))
+        ],
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: 'Menu',
+            icon: const Icon(Icons.menu_rounded, size: 28),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+          const SizedBox(width: 4),
+          const Text.rich(
+            TextSpan(children: [
+              TextSpan(text: 'Pira', style: TextStyle(color: azulNoite)),
+              TextSpan(text: 'Car', style: TextStyle(color: Color(0xFFF5A800))),
+            ]),
+            style: TextStyle(
+                fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+          ),
+          const Spacer(),
+          if (uid != null)
+            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .snapshots(),
+              builder: (context, snap) => GestureDetector(
+                onTap: () => Scaffold.of(context).openDrawer(),
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                      color: amarelo, shape: BoxShape.circle),
+                  child: FotoPerfil(
+                    dados: snap.data?.data(),
+                    raio: 18,
+                    fotoUrl: FirebaseAuth.instance.currentUser?.photoURL,
+                  ),
+                ),
+              ),
+            ),
+          const SizedBox(width: 6),
+        ],
+      ),
+    );
+  }
+}
+
+class _Atalho extends StatelessWidget {
+  const _Atalho(this.emoji, this.texto, this.onTap);
+
+  final String emoji;
+  final String texto;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFFFF4D6),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Text('$emoji $texto',
+              style: const TextStyle(
+                  color: azulNoite, fontWeight: FontWeight.w700)),
+        ),
+      ),
     );
   }
 }
