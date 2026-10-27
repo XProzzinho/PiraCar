@@ -8,6 +8,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import 'aviso.dart';
 import 'foto.dart';
 import 'menu_lateral.dart';
 import 'rota.dart';
@@ -663,6 +664,12 @@ class _HomePageState extends State<HomePage> {
                 ),
             },
             onMapCreated: (c) => _mapa = c,
+          ),
+          const Positioned(
+            top: 10,
+            left: 12,
+            right: 12,
+            child: AvisoBanner(tipo: 'passageiro'),
           ),
           Align(
             alignment: Alignment.bottomCenter,
