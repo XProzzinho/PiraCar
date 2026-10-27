@@ -245,7 +245,7 @@ class _HomePageState extends State<HomePage> {
     final agora = DateTime.now();
     return _livres
         .where((l) =>
-            l.em == null || agora.difference(l.em!).inMinutes.abs() < 3)
+            l.em == null || agora.difference(l.em!).inSeconds.abs() < 70)
         .toList();
   }
 
