@@ -793,6 +793,7 @@ class _HomePageState extends State<HomePage> {
               _Atalho('🛒', 'Centro', () => _atalho('Centro, Pirapora')),
             ],
           ),
+          if (motoristas > 0) ...[
           const SizedBox(height: 12),
           Row(
             children: [
@@ -814,6 +815,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
+          ],
         ] else
           Flexible(child: _listaSugestoes()),
       ],
@@ -1171,62 +1173,27 @@ class _CartaoMotorista extends StatelessWidget {
   }
 }
 
-/// Barra branca arredondada no topo: menu, PiraCar e a foto da pessoa.
+/// Só o botão redondo do menu, solto em cima do mapa.
 class _BarraTopo extends StatelessWidget {
   const _BarraTopo();
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2))
-        ],
-      ),
-      child: Row(
-        children: [
-          IconButton(
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+        child: Material(
+          color: Colors.white,
+          shape: const CircleBorder(),
+          elevation: 4,
+          shadowColor: Colors.black38,
+          child: IconButton(
             tooltip: 'Menu',
-            icon: const Icon(Icons.menu_rounded, size: 28),
+            icon: const Icon(Icons.menu_rounded, size: 26, color: azulNoite),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
-          const SizedBox(width: 4),
-          const Text.rich(
-            TextSpan(children: [
-              TextSpan(text: 'Pira', style: TextStyle(color: azulNoite)),
-              TextSpan(text: 'Car', style: TextStyle(color: Color(0xFFF5A800))),
-            ]),
-            style: TextStyle(
-                fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5),
-          ),
-          const Spacer(),
-          if (uid != null)
-            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uid)
-                  .snapshots(),
-              builder: (context, snap) => GestureDetector(
-                onTap: () => Scaffold.of(context).openDrawer(),
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(
-                      color: amarelo, shape: BoxShape.circle),
-                  child: FotoPerfil(
-                    dados: snap.data?.data(),
-                    raio: 18,
-                    fotoUrl: FirebaseAuth.instance.currentUser?.photoURL,
-                  ),
-                ),
-              ),
-            ),
-          const SizedBox(width: 6),
-        ],
+        ),
       ),
     );
   }
