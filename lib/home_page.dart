@@ -610,7 +610,7 @@ class _HomePageState extends State<HomePage> {
           GoogleMap(
             initialCameraPosition:
                 const CameraPosition(target: _centroPirapora, zoom: 15),
-            myLocationEnabled: false,
+            myLocationEnabled: _posicao != null,
             myLocationButtonEnabled: false,
             padding: EdgeInsets.only(
                 top: 90, bottom: _rota != null ? 340 : 230),
@@ -631,15 +631,6 @@ class _HomePageState extends State<HomePage> {
                 ),
             },
             markers: {
-              if (_posicao != null)
-                Marker(
-                  markerId: const MarkerId('passageiro'),
-                  position: _posicao!,
-                  icon: _iconePessoa,
-                  anchor: const Offset(0.5, 0.5),
-                  zIndex: 2,
-                  infoWindow: const InfoWindow(title: 'Você'),
-                ),
               if (_destinoLL != null)
                 Marker(
                   markerId: const MarkerId('destino'),
