@@ -3,14 +3,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'excluir_conta.dart';
+import 'chat.dart';
 import 'foto.dart';
 import 'foto_trocar.dart';
+import 'menu_visual.dart';
+import 'telas_menu.dart';
 
 const azulNoite = Color(0xFF0B2545);
 const amarelo = Color(0xFFFFC24B);
 const _azul = Color(0xFF1565C0);
-const _textoSuave = Color(0xFF5B6577);
 
 /// Título "PiraCar" com o "Car" em amarelo, usado na barra do topo.
 class MarcaPiraCar extends StatelessWidget {
@@ -65,280 +66,92 @@ bool cpfValido(String cpf) {
   return digito(9) == d[9] && digito(10) == d[10];
 }
 
-const _meses = [
-  'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
-  'jul', 'ago', 'set', 'out', 'nov', 'dez',
-];
 
-/// Menu lateral do passageiro: foto, nome, avaliação dada pelos motoristas
-/// e os dados da conta.
+/// Menu lateral do passageiro (três tracinhos), no estilo gaveta.
 class MenuLateral extends StatelessWidget {
   const MenuLateral({super.key});
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser!;
-    final db = FirebaseFirestore.instance;
 
-    return Drawer(
-      backgroundColor: Colors.white,
-      child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: db.collection('users').doc(user.uid).snapshots(),
-        builder: (context, snapPerfil) {
-          final perfil = snapPerfil.data?.data() ?? const {};
-          final nome = (perfil['nome'] as String?)?.trim().isNotEmpty == true
-              ? perfil['nome'] as String
-              : (user.displayName ?? 'Passageiro');
-          final criadoEm = perfil['criadoEm'];
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
+      builder: (context, snapPerfil) {
+        final perfil = snapPerfil.data?.data() ?? const <String, dynamic>{};
+        final nome = (perfil['nome'] as String?)?.trim().isNotEmpty == true
+            ? perfil['nome'] as String
+            : (user.displayName ?? 'Passageiro');
 
-          return Column(
-            children: [
-              _Cabecalho(
-                nome: nome,
-                perfil: perfil,
-                fotoUrl: user.photoURL,
-                desde: criadoEm is Timestamp ? criadoEm.toDate() : null,
+        void chat(BuildContext c) => abrirDoMenu(
+              c,
+              ChatPage(
+                uid: user.uid,
+                souAdmin: false,
+                titulo: 'Fale conosco',
+                nomeUsuario: nome,
               ),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  children: [
-                    const _Secao('Meus dados'),
-                    _Dado(Icons.person_outline, 'Nome', nome),
-                    _Dado(Icons.badge_outlined, 'CPF',
-                        formatarCpf(perfil['cpf'] as String?)),
-                    _Dado(Icons.phone_outlined, 'Telefone',
-                        formatarTelefone(perfil['telefone'] as String?)),
-                    _Dado(Icons.mail_outline, 'E-mail',
-                        (perfil['email'] as String?) ?? user.email ?? ''),
-                    _Dado(Icons.cake_outlined, 'Data de nascimento',
-                        (perfil['nascimento'] as String?) ?? ''),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => EditarPerfilPage(
-                                  perfil: perfil, nomeAtual: nome),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.edit_outlined, size: 18),
-                        label: const Text('Editar dados'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _azul,
-                          minimumSize: const Size.fromHeight(46),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+            );
+
+        return GavetaPiraCar(
+          cabecalho: CabecalhoMenu(
+            nome: nome,
+            subtitulo: formatarTelefone(perfil['telefone'] as String?),
+            foto: FotoPerfil(
+                dados: {...perfil, 'nome': nome},
+                raio: 38,
+                fotoUrl: user.photoURL),
+            onFoto: () => trocarFotoPerfil(context),
+          ),
+          itens: [
+            ItemMenu(Icons.explore_outlined, 'Minhas viagens',
+                () => abrirDoMenu(context, const MinhasViagensPage()),
+                destaque: true),
+            ItemMenu(Icons.confirmation_number_outlined, 'Adicionar cupom',
+                () => abrirDoMenu(context, const CupomPage())),
+            ItemMenu(Icons.campaign_outlined, 'Divulgação',
+                () => abrirDoMenu(context, const DivulgacaoPage())),
+            ItemMenu(Icons.help_outline, 'Ajuda', () {
+              abrirDoMenu(
+                context,
+                Builder(
+                  builder: (c) => AjudaPage(
+                    abrirChat: () => Navigator.push(
+                      c,
+                      MaterialPageRoute(
+                        builder: (_) => ChatPage(
+                          uid: user.uid,
+                          souAdmin: false,
+                          titulo: 'Fale conosco',
+                          nomeUsuario: nome,
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Color(0xFFC62828)),
-                title: const Text('Sair',
-                    style: TextStyle(
-                        color: Color(0xFFC62828),
-                        fontWeight: FontWeight.w600)),
-                onTap: () {
-                  Navigator.pop(context);
-                  FirebaseAuth.instance.signOut();
-                },
-              ),
-              const BotaoExcluirConta(),
-              SizedBox(height: MediaQuery.paddingOf(context).bottom),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _Cabecalho extends StatelessWidget {
-  const _Cabecalho(
-      {required this.nome, required this.perfil, this.fotoUrl, this.desde});
-
-  final String nome;
-  final Map<String, dynamic> perfil;
-  final String? fotoUrl;
-  final DateTime? desde;
-
-  @override
-  Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final topo = MediaQuery.paddingOf(context).top;
-
-    return Container(
-      width: double.infinity,
-      color: azulNoite,
-      padding: EdgeInsets.fromLTRB(20, topo + 20, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: () => trocarFotoPerfil(context),
-            child: Stack(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: const BoxDecoration(
-                      color: amarelo, shape: BoxShape.circle),
-                  child: FotoPerfil(
-                      dados: {...perfil, 'nome': nome},
-                      raio: 32,
-                      fotoUrl: fotoUrl),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: const BoxDecoration(
-                        color: Colors.white, shape: BoxShape.circle),
-                    child: const Icon(Icons.photo_camera,
-                        size: 14, color: azulNoite),
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(nome,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white)),
-          const SizedBox(height: 8),
-          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('corridas')
-                .where('passageiroId', isEqualTo: uid)
-                .snapshots(),
-            builder: (context, snap) {
-              final corridas = snap.data?.docs ?? const [];
-              final notas = corridas
-                  .map((d) => d.data()['avaliacaoPassageiro'])
-                  .whereType<num>()
-                  .toList();
-              final feitas = corridas
-                  .where((d) => d.data()['status'] == 'finalizada')
-                  .length;
-              final media = notas.isEmpty
-                  ? null
-                  : notas.reduce((a, b) => a + b) / notas.length;
-              return Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _Pilula(
-                    icone: Icons.star_rounded,
-                    corIcone: amarelo,
-                    texto: media == null
-                        ? 'Sem avaliações'
-                        : '${media.toStringAsFixed(1).replaceAll('.', ',')}'
-                            ' · ${notas.length} '
-                            '${notas.length == 1 ? 'avaliação' : 'avaliações'}',
-                  ),
-                  _Pilula(
-                    icone: Icons.local_taxi_outlined,
-                    corIcone: Colors.white,
-                    texto: '$feitas ${feitas == 1 ? 'corrida' : 'corridas'}',
-                  ),
-                ],
               );
-            },
-          ),
-          if (desde != null) ...[
-            const SizedBox(height: 10),
-            Text('Passageiro desde ${_meses[desde!.month - 1]}/${desde!.year}',
-                style: const TextStyle(fontSize: 13, color: Color(0xFFC9D6EA))),
+            }),
+            StreamBuilder<int>(
+              stream: naoLidas(user.uid, souAdmin: false),
+              builder: (context, snap) => ItemMenu(
+                Icons.support_agent_outlined,
+                'Fale conosco',
+                () => chat(context),
+                contador: snap.data ?? 0,
+              ),
+            ),
+            ItemMenu(Icons.settings_outlined, 'Configurações',
+                () => abrirDoMenu(context, const ConfiguracoesPage())),
+            ItemMenu(Icons.logout, 'Sair', () {
+              Navigator.pop(context);
+              FirebaseAuth.instance.signOut();
+            }),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Pilula extends StatelessWidget {
-  const _Pilula(
-      {required this.icone, required this.corIcone, required this.texto});
-
-  final IconData icone;
-  final Color corIcone;
-  final String texto;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0x26FFFFFF),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icone, size: 16, color: corIcone),
-          const SizedBox(width: 4),
-          Text(texto,
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white)),
-        ],
-      ),
-    );
-  }
-}
-
-class _Secao extends StatelessWidget {
-  const _Secao(this.titulo);
-
-  final String titulo;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Text(titulo.toUpperCase(),
-          style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-              color: _textoSuave)),
-    );
-  }
-}
-
-class _Dado extends StatelessWidget {
-  const _Dado(this.icone, this.rotulo, this.valor);
-
-  final IconData icone;
-  final String rotulo;
-  final String valor;
-
-  @override
-  Widget build(BuildContext context) {
-    final vazio = valor.trim().isEmpty;
-    return ListTile(
-      dense: true,
-      leading: Icon(icone, color: const Color(0xFF64748B)),
-      title: Text(rotulo,
-          style: const TextStyle(fontSize: 12, color: _textoSuave)),
-      subtitle: Text(vazio ? 'Não informado' : valor,
-          style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: vazio ? const Color(0xFF94A3B8) : const Color(0xFF0F172A))),
+        );
+      },
     );
   }
 }
@@ -360,6 +173,8 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
   late final _nome = TextEditingController(text: widget.nomeAtual);
   late final _cpf = TextEditingController(
       text: _soDigitos(widget.perfil['cpf'] as String? ?? ''));
+  late final _rg = TextEditingController(
+      text: (widget.perfil['rg'] as String? ?? '').trim());
   late final _telefone = TextEditingController(
       text: _soDigitos(widget.perfil['telefone'] as String? ?? ''));
   late final _nascimento = TextEditingController(
@@ -370,6 +185,7 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
   void dispose() {
     _nome.dispose();
     _cpf.dispose();
+    _rg.dispose();
     _telefone.dispose();
     _nascimento.dispose();
     super.dispose();
@@ -386,6 +202,7 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
           .update({
         'nome': _nome.text.trim(),
         'cpf': _soDigitos(_cpf.text),
+        'rg': _rg.text.trim().toUpperCase(),
         'telefone': _soDigitos(_telefone.text),
         'nascimento': nasc.length == 8
             ? '${nasc.substring(0, 2)}/${nasc.substring(2, 4)}/${nasc.substring(4)}'
@@ -454,6 +271,12 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
               validator: (v) => (v ?? '').isEmpty || cpfValido(v!)
                   ? null
                   : 'CPF inválido',
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _rg,
+              textCapitalization: TextCapitalization.characters,
+              decoration: _decoracao('RG', Icons.credit_card_outlined),
             ),
             const SizedBox(height: 16),
             TextFormField(
