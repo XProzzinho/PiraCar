@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'excluir_conta.dart';
 import 'foto.dart';
 import 'foto_trocar.dart';
 
@@ -150,6 +151,7 @@ class MenuLateral extends StatelessWidget {
                   FirebaseAuth.instance.signOut();
                 },
               ),
+              const BotaoExcluirConta(),
               SizedBox(height: MediaQuery.paddingOf(context).bottom),
             ],
           );
