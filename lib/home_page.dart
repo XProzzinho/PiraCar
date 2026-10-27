@@ -252,6 +252,7 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _subLivres?.cancel();
     _relogio?.cancel();
+    _despachante?.cancel();
     _subCorrida?.cancel();
     super.dispose();
   }
@@ -378,7 +379,85 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // ---------- Despacho: motorista mais perto primeiro ----------
+  // Enquanto a corrida está "solicitada", o app do passageiro oferece o
+  // pedido ao motorista livre mais perto. Ele tem 15 s para aceitar; se
+  // recusar ou não responder, passa para o próximo mais perto.
+
+  static const _tempoOferta = Duration(seconds: 15);
+  Map<String, dynamic>? _dadosCorrida;
+  Timer? _despachante;
+  String? _ofertadoLocal;
+  DateTime? _ofertadoDesde;
+  bool _despachando = false;
+
+  void _ligarDespacho(bool ligar) {
+    _despachante?.cancel();
+    _despachante = null;
+    if (ligar) {
+      _despachar();
+      _despachante =
+          Timer.periodic(const Duration(seconds: 3), (_) => _despachar());
+    }
+  }
+
+  Future<void> _despachar() async {
+    final d = _dadosCorrida;
+    final id = _corridaId;
+    if (_despachando || d == null || id == null) return;
+    if (d['status'] != 'solicitada') return;
+    final atual = d['ofertadoPara'] as String?;
+    final recusados = ((d['recusadoPor'] as List?) ?? const [])
+        .whereType<String>()
+        .toSet();
+
+    // oferta em andamento: espera os 15 s
+    if (atual != null) {
+      if (_ofertadoLocal != atual) {
+        _ofertadoLocal = atual;
+        final em = d['ofertadoEm'];
+        _ofertadoDesde = em is Timestamp ? em.toDate() : DateTime.now();
+      }
+      final passou = DateTime.now().difference(_ofertadoDesde!);
+      final aindaLivre = _livresAgora.any((l) => l.id == atual);
+      if (passou < _tempoOferta && aindaLivre) return;
+      recusados.add(atual); // não respondeu a tempo ou ficou indisponível
+    }
+
+    final origem = _posicao;
+    if (origem == null) return;
+    var livres = _livresAgora.where((l) => !recusados.contains(l.id)).toList();
+    var recomecar = false;
+    if (livres.isEmpty && _livresAgora.isNotEmpty) {
+      // todo mundo já recebeu: recomeça a fila
+      livres = _livresAgora.toList();
+      recomecar = true;
+    }
+    double dist(_Livre l) => Geolocator.distanceBetween(origem.latitude,
+        origem.longitude, l.pos.latitude, l.pos.longitude);
+    livres.sort((a, b) => dist(a).compareTo(dist(b)));
+    final proximo = livres.isEmpty ? null : livres.first.id;
+    if (proximo == atual && !recomecar) return;
+
+    _despachando = true;
+    try {
+      await _db.collection('corridas').doc(id).update({
+        'ofertadoPara': proximo,
+        'ofertadoEm': FieldValue.serverTimestamp(),
+        'recusadoPor': recomecar ? <String>[] : recusados.toList(),
+      });
+      _ofertadoLocal = proximo;
+      _ofertadoDesde = DateTime.now();
+    } catch (_) {
+    } finally {
+      _despachando = false;
+    }
+  }
+
   void _limparAcompanhamento() {
+    _ligarDespacho(false);
+    _dadosCorrida = null;
+    _ofertadoLocal = null;
     _subCorrida?.cancel();
     _subCorrida = null;
     _status = null;
@@ -394,6 +473,12 @@ class _HomePageState extends State<HomePage> {
       final d = doc.data();
       if (d == null || !mounted) return;
       final status = d['status'] as String;
+      _dadosCorrida = d;
+      if (status == 'solicitada') {
+        if (_despachante == null) _ligarDespacho(true);
+      } else if (_despachante != null) {
+        _ligarDespacho(false);
+      }
       final gp = d['motoristaPos'];
       final pos = gp is GeoPoint ? LatLng(gp.latitude, gp.longitude) : null;
       final anterior = _status;
