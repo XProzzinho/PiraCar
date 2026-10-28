@@ -1025,47 +1025,114 @@ class _HomePageState extends State<HomePage> {
                 style: const TextStyle(
                     fontSize: 17, fontWeight: FontWeight.w900)),
           ),
-        Text(
-          'PiraCar: ${formatarReal(_valorBase)} até 3 km • depois ${formatarReal(_precoKmExtra)} por km',
-          style: const TextStyle(fontSize: 12, color: Colors.black54),
-        ),
-        const SizedBox(height: 10),
-        const Text('Forma de pagamento'),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
+        const SizedBox(height: 8),
+        const Text('PAGAMENTO',
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+                color: Color(0xFF64748B))),
+        const SizedBox(height: 8),
+        Row(
           children: [
-            for (final e in _formas.entries)
-              ChoiceChip(
-                avatar: Icon(_icones[e.key], size: 18),
-                label: Text(e.value),
-                selected: _pagamento == e.key,
-                onSelected: (_) => setState(() => _pagamento = e.key),
-              ),
+            for (final e in _formas.entries) ...[
+              if (e.key != _formas.keys.first) const SizedBox(width: 8),
+              Expanded(child: _botaoPagamento(e.key, e.value)),
+            ],
           ],
         ),
-        const SizedBox(height: 6),
-        const Text(
-          'O pagamento é feito direto ao motorista no fim da corrida.',
-          style: TextStyle(fontSize: 12, color: Colors.black54),
+        const SizedBox(height: 8),
+        const Center(
+          child: Text('Você paga direto ao motorista no fim da corrida',
+              style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: _pedindo || _pagamento == null ? null : _pedirCorrida,
-            child: Text(_pagamento == null
-                ? 'Escolha a forma de pagamento'
-                : 'Pedir ${categoriaPorId(_categoria).nome}'),
-          ),
-        ),
-        Center(
-          child: TextButton(
-            onPressed: _alterarDestino,
-            child: const Text('Alterar destino'),
-          ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            SizedBox(
+              width: 60,
+              height: 60,
+              child: OutlinedButton(
+                onPressed: _alterarDestino,
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
+                ),
+                child: const Tooltip(
+                  message: 'Alterar destino',
+                  child: Icon(Icons.edit_location_alt_outlined,
+                      color: Color(0xFF334155)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SizedBox(
+                height: 60,
+                child: FilledButton(
+                  onPressed:
+                      _pedindo || _pagamento == null ? null : _pedirCorrida,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF1565C0),
+                    disabledBackgroundColor: const Color(0xFFE2E8F0),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                    textStyle: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w700),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(_pagamento == null
+                        ? 'Escolha o pagamento'
+                        : 'Confirmar ${categoriaPorId(_categoria).nome} · '
+                            '${formatarReal(_precoDe(categoriaPorId(_categoria)))}'),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
+    );
+  }
+
+  Widget _botaoPagamento(String id, String nome) {
+    final sel = _pagamento == id;
+    return Material(
+      color: sel ? const Color(0xFF0F172A) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+            color: sel ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+            width: 1.5),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => setState(() => _pagamento = id),
+        child: SizedBox(
+          height: 64,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(_icones[id],
+                  size: 22,
+                  color: sel
+                      ? (id == 'pix'
+                          ? const Color(0xFF5EEAD4)
+                          : Colors.white)
+                      : const Color(0xFF475569)),
+              const SizedBox(height: 4),
+              Text(nome,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: sel ? FontWeight.w700 : FontWeight.w600,
+                      color: sel ? Colors.white : const Color(0xFF334155))),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
