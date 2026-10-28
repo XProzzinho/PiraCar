@@ -14,7 +14,7 @@ const azulNoite = Color(0xFF0B2545);
 const amarelo = Color(0xFFFFC24B);
 const _azul = Color(0xFF1565C0);
 
-/// Título "PiraCar" com o "Car" em amarelo, usado na barra do topo.
+/// Título "Uai Car" com o "Car" em amarelo, usado na barra do topo.
 class MarcaPiraCar extends StatelessWidget {
   const MarcaPiraCar({super.key});
 
@@ -23,7 +23,7 @@ class MarcaPiraCar extends StatelessWidget {
     return const Text.rich(
       TextSpan(
         children: [
-          TextSpan(text: 'Pira', style: TextStyle(color: Colors.white)),
+          TextSpan(text: 'Uai ', style: TextStyle(color: Colors.white)),
           TextSpan(text: 'Car', style: TextStyle(color: amarelo)),
         ],
       ),
