@@ -150,7 +150,7 @@ class _ChatPageState extends State<ChatPage> {
                       child: Text(
                         widget.souAdmin
                             ? 'Nenhuma mensagem ainda.'
-                            : 'Mande sua mensagem. A equipe PiraCar responde por aqui.',
+                            : 'Mande sua mensagem. A equipe Bora Car responde por aqui.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: fr(Colors.black54)),
                       ),

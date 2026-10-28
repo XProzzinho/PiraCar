@@ -299,7 +299,7 @@ class DivulgacaoPage extends StatelessWidget {
   const DivulgacaoPage({super.key});
 
   static const mensagem =
-      'Conheça o PiraCar, o app de corridas de Pirapora! '
+      'Conheça o Bora Car, o app de corridas de Pirapora! '
       'Peça seu carro pelo celular, acompanhe o motorista no mapa e '
       'pague com cartão ou Pix.';
 
@@ -322,7 +322,7 @@ class DivulgacaoPage extends StatelessWidget {
               children: [
                 Icon(Icons.campaign_outlined, color: corMenuAmarelo, size: 34),
                 SizedBox(height: 10),
-                Text('Ajude o PiraCar a crescer',
+                Text('Ajude o Bora Car a crescer',
                     style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,

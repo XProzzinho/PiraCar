@@ -316,7 +316,7 @@ class _Marca extends StatelessWidget {
             const Text.rich(
               TextSpan(
                 children: [
-                  TextSpan(text: 'Pira', style: TextStyle(color: Colors.white)),
+                  TextSpan(text: 'Bora ', style: TextStyle(color: Colors.white)),
                   TextSpan(text: 'Car', style: TextStyle(color: _amarelo)),
                 ],
               ),

@@ -256,7 +256,7 @@ class _CadastroPassageiroPageState extends State<CadastroPassageiroPage> {
         subtitulo: 'É com esse e-mail e senha que você vai entrar.',
         botao: 'Criar minha conta',
         rodape: const Text(
-          'Ao criar a conta você aceita os Termos de uso do PiraCar.',
+          'Ao criar a conta você aceita os Termos de uso do Bora Car.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13, color: corTextoSuave),
         ),
