@@ -11,9 +11,6 @@ import 'menu_visual.dart';
 
 const _fundo = Color(0xFFF4F6FA);
 
-String _real(num v) =>
-    'R\$ ${v.toDouble().toStringAsFixed(2).replaceAll('.', ',')}';
-
 String _data(dynamic ts) {
   if (ts is! Timestamp) return '';
   final d = ts.toDate();
@@ -109,7 +106,7 @@ class MinhasViagensPage extends StatelessWidget {
                           ),
                         ),
                         if (valor is num)
-                          Text(_real(valor),
+                          Text(formatarReal(valor),
                               style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,

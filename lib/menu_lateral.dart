@@ -32,16 +32,21 @@ class MarcaPiraCar extends StatelessWidget {
   }
 }
 
-String _soDigitos(String s) => s.replaceAll(RegExp(r'\D'), '');
+/// Só os números do texto.
+String soDigitos(String s) => s.replaceAll(RegExp(r'\D'), '');
+
+/// Valor em reais: 16.4 -> "R\$ 16,40".
+String formatarReal(num v) =>
+    'R\$ ${v.toDouble().toStringAsFixed(2).replaceAll('.', ',')}';
 
 String formatarCpf(String? cpf) {
-  final d = _soDigitos(cpf ?? '');
+  final d = soDigitos(cpf ?? '');
   if (d.length != 11) return cpf ?? '';
   return '${d.substring(0, 3)}.${d.substring(3, 6)}.${d.substring(6, 9)}-${d.substring(9)}';
 }
 
 String formatarTelefone(String? tel) {
-  final d = _soDigitos(tel ?? '');
+  final d = soDigitos(tel ?? '');
   if (d.length == 11) {
     return '(${d.substring(0, 2)}) ${d.substring(2, 7)}-${d.substring(7)}';
   }
@@ -52,7 +57,7 @@ String formatarTelefone(String? tel) {
 }
 
 bool cpfValido(String cpf) {
-  final d = _soDigitos(cpf).split('').map(int.parse).toList();
+  final d = soDigitos(cpf).split('').map(int.parse).toList();
   if (d.length != 11 || d.toSet().length == 1) return false;
   int digito(int n) {
     var soma = 0;
@@ -172,11 +177,11 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
   final _form = GlobalKey<FormState>();
   late final _nome = TextEditingController(text: widget.nomeAtual);
   late final _cpf = TextEditingController(
-      text: _soDigitos(widget.perfil['cpf'] as String? ?? ''));
+      text: soDigitos(widget.perfil['cpf'] as String? ?? ''));
   late final _telefone = TextEditingController(
-      text: _soDigitos(widget.perfil['telefone'] as String? ?? ''));
+      text: soDigitos(widget.perfil['telefone'] as String? ?? ''));
   late final _nascimento = TextEditingController(
-      text: _soDigitos(widget.perfil['nascimento'] as String? ?? ''));
+      text: soDigitos(widget.perfil['nascimento'] as String? ?? ''));
   bool _salvando = false;
 
   @override
@@ -191,15 +196,15 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
   Future<void> _salvar() async {
     if (!_form.currentState!.validate()) return;
     setState(() => _salvando = true);
-    final nasc = _soDigitos(_nascimento.text);
+    final nasc = soDigitos(_nascimento.text);
     try {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(FirebaseAuth.instance.currentUser!.uid)
           .update({
         'nome': _nome.text.trim(),
-        'cpf': _soDigitos(_cpf.text),
-        'telefone': _soDigitos(_telefone.text),
+        'cpf': soDigitos(_cpf.text),
+        'telefone': soDigitos(_telefone.text),
         'nascimento': nasc.length == 8
             ? '${nasc.substring(0, 2)}/${nasc.substring(2, 4)}/${nasc.substring(4)}'
             : '',

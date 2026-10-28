@@ -6,9 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'cadastro_etapas.dart';
-import 'menu_lateral.dart' show cpfValido;
-
-String _soDigitos(String s) => s.replaceAll(RegExp(r'\D'), '');
+import 'menu_lateral.dart' show cpfValido, soDigitos;
 
 /// Cadastro do passageiro em etapas:
 /// 1 Dados pessoais, 2 Foto, 3 E-mail e senha.
@@ -63,7 +61,7 @@ class _CadastroPassageiroPageState extends State<CadastroPassageiroPage> {
         if (!dataValida(_nascimento.text)) {
           return 'Data de nascimento inválida. Use DD/MM/AAAA.';
         }
-        if (_soDigitos(_telefone.text).length < 10) {
+        if (soDigitos(_telefone.text).length < 10) {
           return 'Digite o telefone com DDD.';
         }
         return null;
@@ -111,9 +109,9 @@ class _CadastroPassageiroPageState extends State<CadastroPassageiroPage> {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'nome': _nome.text.trim(),
         'email': user.email,
-        'cpf': _soDigitos(_cpf.text),
+        'cpf': soDigitos(_cpf.text),
         'nascimento': _nascimento.text.trim(),
-        'telefone': _soDigitos(_telefone.text),
+        'telefone': soDigitos(_telefone.text),
         if (_foto != null) 'foto': base64Encode(_foto!),
         'role': 'passageiro',
         'criadoEm': FieldValue.serverTimestamp(),
