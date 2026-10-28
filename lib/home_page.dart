@@ -59,9 +59,23 @@ class _Livre {
   final String id;
   final LatLng pos;
   final double direcao;
-  final DateTime? em;
+
+  /// Quando ESTE celular viu o sinal do motorista mudar pela última vez.
+  /// (Não usa o relógio do servidor: se o relógio do celular estiver
+  /// adiantado ou atrasado, o motorista sumia da lista e o pedido sumia
+  /// da tela dele.)
+  final DateTime visto;
   final List<String> categorias;
-  _Livre(this.id, this.pos, this.direcao, this.em, this.categorias);
+
+  /// Motorista terminando uma corrida, perto de deixar o passageiro: pode
+  /// receber a próxima e vir depois.
+  final bool quaseLivre;
+
+  /// Onde ele vai ficar livre (destino da corrida atual) e quanto falta.
+  final LatLng? livreEm;
+  final double restante;
+  _Livre(this.id, this.pos, this.direcao, this.visto, this.categorias,
+      {this.quaseLivre = false, this.livreEm, this.restante = 0});
 }
 
 class HomePage extends StatefulWidget {
@@ -175,15 +189,30 @@ class _HomePageState extends State<HomePage> {
         .snapshots()
         .listen((snap) {
       final lista = <_Livre>[];
+      final agora = DateTime.now();
       for (final d in snap.docs) {
         final m = d.data();
         final gp = m['posicao'];
         if (gp is! GeoPoint) continue;
         final em = m['posicaoEm'];
         final dir = m['direcao'];
-        lista.add(_Livre(d.id, LatLng(gp.latitude, gp.longitude),
-            dir is num ? dir.toDouble() : 0, em is Timestamp ? em.toDate() : null,
-            categoriasDoMotorista(m)));
+        // marca a hora (deste celular) em que o sinal mudou
+        final anterior = _sinais[d.id];
+        final visto =
+            (anterior != null && anterior.$1 == em) ? anterior.$2 : agora;
+        _sinais[d.id] = (em, visto);
+        final le = m['livreEm'];
+        final rest = m['restanteMetros'];
+        lista.add(_Livre(
+          d.id,
+          LatLng(gp.latitude, gp.longitude),
+          dir is num ? dir.toDouble() : 0,
+          visto,
+          categoriasDoMotorista(m),
+          quaseLivre: m['quaseLivre'] == true,
+          livreEm: le is GeoPoint ? LatLng(le.latitude, le.longitude) : null,
+          restante: rest is num ? rest.toDouble() : 0,
+        ));
       }
       if (mounted) setState(() => _livres = lista);
     }, onError: (_) {});
@@ -193,13 +222,19 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  final Map<String, (Object?, DateTime)> _sinais = {};
+
+  /// Motoristas online com sinal recente (inclui os quase livres).
   List<_Livre> get _livresAgora {
     final agora = DateTime.now();
     return _livres
-        .where((l) =>
-            l.em == null || agora.difference(l.em!).inSeconds.abs() < 70)
+        .where((l) => agora.difference(l.visto).inSeconds < 70)
         .toList();
   }
+
+  /// Só os livres de verdade (para mostrar o carrinho no mapa).
+  List<_Livre> get _livresNoMapa =>
+      _livresAgora.where((l) => !l.quaseLivre).toList();
 
   @override
   void dispose() {
@@ -411,13 +446,17 @@ class _HomePageState extends State<HomePage> {
 
   // ---------- Despacho: motorista mais perto primeiro ----------
   // Enquanto a corrida está "solicitada", o app do passageiro oferece o
-  // pedido ao motorista livre mais perto. Ele tem 15 s para aceitar; se
-  // recusar ou não responder, passa para o próximo mais perto.
+  // pedido ao motorista mais perto. Ele tem 20 s para aceitar; se recusar
+  // ou não responder, passa para o próximo mais perto. Se ninguém mais
+  // estiver perto (ou todos recusaram), oferece de novo ao mais perto.
+  // Motoristas terminando uma corrida perto daqui também entram na fila
+  // (contando a distância que ainda falta para eles ficarem livres).
 
-  static const _tempoOferta = Duration(seconds: 15);
+  /// 20 s na tela do motorista + folga da internet.
+  static const _tempoOferta = Duration(seconds: 24);
   Map<String, dynamic>? _dadosCorrida;
   Timer? _despachante;
-  String? _ofertadoLocal;
+  String? _rodadaLocal;
   DateTime? _ofertadoDesde;
   bool _despachando = false;
 
@@ -427,7 +466,7 @@ class _HomePageState extends State<HomePage> {
     if (ligar) {
       _despachar();
       _despachante =
-          Timer.periodic(const Duration(seconds: 3), (_) => _despachar());
+          Timer.periodic(const Duration(seconds: 2), (_) => _despachar());
     }
   }
 
@@ -441,46 +480,63 @@ class _HomePageState extends State<HomePage> {
         .whereType<String>()
         .toSet();
 
-    // oferta em andamento: espera os 15 s
+    // oferta em andamento: espera o tempo dela (contado neste celular)
     if (atual != null) {
-      if (_ofertadoLocal != atual) {
-        _ofertadoLocal = atual;
-        final em = d['ofertadoEm'];
-        _ofertadoDesde = em is Timestamp ? em.toDate() : DateTime.now();
+      final rodada = '$atual|${d['ofertadoEm']}';
+      if (_rodadaLocal != rodada || _ofertadoDesde == null) {
+        _rodadaLocal = rodada;
+        _ofertadoDesde ??= DateTime.now();
       }
       final passou = DateTime.now().difference(_ofertadoDesde!);
-      final aindaLivre = _livresAgora.any((l) => l.id == atual);
-      if (passou < _tempoOferta && aindaLivre) return;
-      recusados.add(atual); // não respondeu a tempo ou ficou indisponível
+      final aindaOnline = _livres.any((l) => l.id == atual);
+      if (passou < _tempoOferta && aindaOnline) return;
+      recusados.add(atual); // não respondeu a tempo ou saiu do online
     }
 
     final origem = _posicao;
     if (origem == null) return;
     // só motoristas que rodam na categoria pedida
     final cat = (d['categoria'] as String?) ?? 'piracar';
-    final daCategoria =
+    final candidatos =
         _livresAgora.where((l) => l.categorias.contains(cat)).toList();
-    var livres = daCategoria.where((l) => !recusados.contains(l.id)).toList();
+    var livres = candidatos.where((l) => !recusados.contains(l.id)).toList();
     var recomecar = false;
-    if (livres.isEmpty && daCategoria.isNotEmpty) {
-      // todo mundo já recebeu: recomeça a fila
-      livres = daCategoria.toList();
+    if (livres.isEmpty && candidatos.isNotEmpty) {
+      // ninguém mais por perto ou todos recusaram: volta ao mais perto
+      livres = candidatos.toList();
       recomecar = true;
     }
-    double dist(_Livre l) => Geolocator.distanceBetween(origem.latitude,
-        origem.longitude, l.pos.latitude, l.pos.longitude);
-    livres.sort((a, b) => dist(a).compareTo(dist(b)));
-    final proximo = livres.isEmpty ? null : livres.first.id;
-    if (proximo == atual && !recomecar) return;
+    if (livres.isEmpty) {
+      // nenhum motorista online agora: tira a oferta vencida e espera
+      if (atual != null) await _ofertar(id, null, recusados, false);
+      return;
+    }
+    double dist(_Livre l) {
+      if (l.quaseLivre && l.livreEm != null) {
+        // ainda vai deixar o passageiro dele: conta o que falta + 1 km
+        return l.restante +
+            1000 +
+            Geolocator.distanceBetween(origem.latitude, origem.longitude,
+                l.livreEm!.latitude, l.livreEm!.longitude);
+      }
+      return Geolocator.distanceBetween(origem.latitude, origem.longitude,
+          l.pos.latitude, l.pos.longitude);
+    }
 
+    livres.sort((a, b) => dist(a).compareTo(dist(b)));
+    await _ofertar(id, livres.first.id, recusados, recomecar);
+  }
+
+  Future<void> _ofertar(String id, String? motorista, Set<String> recusados,
+      bool recomecar) async {
     _despachando = true;
     try {
       await _db.collection('corridas').doc(id).update({
-        'ofertadoPara': proximo,
+        'ofertadoPara': motorista,
         'ofertadoEm': FieldValue.serverTimestamp(),
         'recusadoPor': recomecar ? <String>[] : recusados.toList(),
       });
-      _ofertadoLocal = proximo;
+      _rodadaLocal = null;
       _ofertadoDesde = DateTime.now();
     } catch (_) {
     } finally {
@@ -491,7 +547,8 @@ class _HomePageState extends State<HomePage> {
   void _limparAcompanhamento() {
     _ligarDespacho(false);
     _dadosCorrida = null;
-    _ofertadoLocal = null;
+    _rodadaLocal = null;
+    _ofertadoDesde = null;
     _subCorrida?.cancel();
     _subCorrida = null;
     _status = null;
@@ -617,7 +674,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final emCorrida = _status == 'aceita' || _status == 'em_andamento';
-    final livres = emCorrida ? const <_Livre>[] : _livresAgora;
+    final livres = emCorrida ? const <_Livre>[] : _livresNoMapa;
     final mostrarRotaMotorista = _status == 'aceita' &&
         _rotaMotorista != null &&
         !_rotaMotorista!.estimada;
@@ -1026,7 +1083,12 @@ class _HomePageState extends State<HomePage> {
               _CartaoMotorista(uid: dados['motoristaId'] as String),
             Text(_statusTexto[status] ?? status,
                 style: Theme.of(context).textTheme.titleMedium),
-            if (status == 'aceita')
+            if (status == 'aceita' && dados['naFila'] == true)
+              const Text(
+                  'O motorista está terminando outra corrida aqui perto '
+                  'e vem buscar você em seguida.',
+                  textAlign: TextAlign.center)
+            else if (status == 'aceita')
               Text(_rotaMotorista != null
                   ? 'Motorista a ${_rotaMotorista!.resumo}'
                   : 'Localizando o motorista...'),
