@@ -10,6 +10,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'aviso.dart';
 import 'carro_icone.dart';
+import 'categorias.dart';
 import 'foto.dart';
 import 'lugares.dart';
 import 'menu_lateral.dart';
@@ -72,8 +73,12 @@ class _Livre {
   /// Onde ele vai ficar livre (destino da corrida atual) e quanto falta.
   final LatLng? livreEm;
   final double restante;
+  final List<String> categorias;
   _Livre(this.id, this.pos, this.direcao, this.visto,
-      {this.quaseLivre = false, this.livreEm, this.restante = 0});
+      {this.quaseLivre = false,
+      this.livreEm,
+      this.restante = 0,
+      this.categorias = const ['piracar']});
 }
 
 class HomePage extends StatefulWidget {
@@ -97,7 +102,20 @@ class _HomePageState extends State<HomePage> {
   LatLng? _destinoLL;
   String _destinoTexto = '';
   Rota? _rota;
-  double? _valor;
+  double? _valor; // valor base (PiraCar); cada categoria multiplica
+  String _categoria = 'piracar';
+  bool _motoAtiva = false;
+  StreamSubscription<bool>? _subMoto;
+
+  List<Categoria> get _categoriasVisiveis => [
+        catPiracar,
+        if (_motoAtiva) catMoto,
+        catSedan,
+        catConforto,
+      ];
+
+  double _precoDe(Categoria c) =>
+      double.parse((_valor! * c.multiplicador).toStringAsFixed(2));
   String? _pagamento;
   String? _corridaId;
   bool _calculando = false;
@@ -154,6 +172,13 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _subMoto = motoAtiva().listen((v) {
+      if (!mounted) return;
+      setState(() {
+        _motoAtiva = v;
+        if (!v && _categoria == 'moto') _categoria = 'piracar';
+      });
+    });
     _carregarIcones();
     _localizar();
     _ouvirLivres();
@@ -189,6 +214,7 @@ class _HomePageState extends State<HomePage> {
           quaseLivre: m['quaseLivre'] == true,
           livreEm: le is GeoPoint ? LatLng(le.latitude, le.longitude) : null,
           restante: rest is num ? rest.toDouble() : 0,
+          categorias: categoriasDoMotorista(m),
         ));
       }
       if (mounted) setState(() => _livres = lista);
@@ -218,6 +244,7 @@ class _HomePageState extends State<HomePage> {
     _atrasoBusca?.cancel();
     _focoBusca.dispose();
     _subLivres?.cancel();
+    _subMoto?.cancel();
     _relogio?.cancel();
     _despachante?.cancel();
     _subCorrida?.cancel();
@@ -404,7 +431,8 @@ class _HomePageState extends State<HomePage> {
         'destino': GeoPoint(_destinoLL!.latitude, _destinoLL!.longitude),
         'destinoTexto': _destinoTexto,
         'distanciaKm': double.parse((_rota!.metros / 1000).toStringAsFixed(2)),
-        'valor': _valor,
+        'valor': _precoDe(categoriaPorId(_categoria)),
+        'categoria': _categoria,
         'pagamento': _pagamento,
         'status': 'solicitada',
         'criadoEm': FieldValue.serverTimestamp(),
@@ -470,7 +498,10 @@ class _HomePageState extends State<HomePage> {
 
     final origem = _posicao;
     if (origem == null) return;
-    final candidatos = _livresAgora;
+    // só motoristas que rodam na categoria pedida
+    final cat = (d['categoria'] as String?) ?? 'piracar';
+    final candidatos =
+        _livresAgora.where((l) => l.categorias.contains(cat)).toList();
     var livres = candidatos.where((l) => !recusados.contains(l.id)).toList();
     var recomecar = false;
     if (livres.isEmpty && candidatos.isNotEmpty) {
@@ -980,13 +1011,21 @@ class _HomePageState extends State<HomePage> {
             style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 2),
         Text(_rota!.resumo),
-        const SizedBox(height: 4),
+        const SizedBox(height: 12),
+        const Text('Escolha a categoria',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 10),
+        for (final c in _categoriasVisiveis)
+          CartaoCategoria(
+            categoria: c,
+            selecionado: _categoria == c.id,
+            onTap: () => setState(() => _categoria = c.id),
+            direita: Text(formatarReal(_precoDe(c)),
+                style: const TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.w900)),
+          ),
         Text(
-          'Valor: ${formatarReal(_valor!)}',
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          'Até 3 km: ${formatarReal(_valorBase)} • depois ${formatarReal(_precoKmExtra)} por km',
+          'PiraCar: ${formatarReal(_valorBase)} até 3 km • depois ${formatarReal(_precoKmExtra)} por km',
           style: const TextStyle(fontSize: 12, color: Colors.black54),
         ),
         const SizedBox(height: 10),
@@ -1016,7 +1055,7 @@ class _HomePageState extends State<HomePage> {
             onPressed: _pedindo || _pagamento == null ? null : _pedirCorrida,
             child: Text(_pagamento == null
                 ? 'Escolha a forma de pagamento'
-                : 'Pedir corrida'),
+                : 'Pedir ${categoriaPorId(_categoria).nome}'),
           ),
         ),
         Center(
