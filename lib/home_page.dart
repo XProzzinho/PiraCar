@@ -693,6 +693,7 @@ class _HomePageState extends State<HomePage> {
                 const CameraPosition(target: _centroPirapora, zoom: 15),
             myLocationEnabled: _posicao != null,
             myLocationButtonEnabled: false,
+            mapToolbarEnabled: false,
             padding: EdgeInsets.only(
                 top: 90, bottom: _rota != null ? 340 : 230),
             polylines: {
