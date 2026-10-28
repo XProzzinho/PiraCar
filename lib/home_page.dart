@@ -26,9 +26,7 @@ double _calcularValor(double km) {
       (_valorBase + (km - _kmIncluidos) * _precoKmExtra).toStringAsFixed(2));
 }
 
-String _real(double v) => 'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
-
-// Desenha um ícone (carrinho, bonequinho) dentro de um círculo colorido.
+// Desenha um ícone (o carrinho) dentro de um círculo colorido.
 Future<BitmapDescriptor> _criarIcone(IconData icone, Color cor,
     {double tam = 110}) async {
   final gravador = ui.PictureRecorder();
@@ -91,8 +89,6 @@ class _HomePageState extends State<HomePage> {
   bool _calculando = false;
   bool _pedindo = false;
 
-  BitmapDescriptor _iconePessoa = BitmapDescriptor.defaultMarkerWithHue(
-      BitmapDescriptor.hueAzure);
   double _motoristaDir = 0;
   BitmapDescriptor _iconeCarro =
       BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
@@ -195,13 +191,11 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _carregarIcones() async {
     try {
-      final pessoa = await _criarIcone(Icons.person, Colors.blue.shade700);
       final carro =
           await _criarIcone(Icons.directions_car, Colors.green.shade700);
       final deCima = await criarCarroDeCima();
       if (!mounted) return;
       setState(() {
-        _iconePessoa = pessoa;
         _iconeCarro = carro;
         _iconeCarroCima = deCima;
       });
@@ -560,8 +554,8 @@ class _HomePageState extends State<HomePage> {
     if (primeira) _ajustarCamera([pos, _posicao!, ...rota.pontos]);
   }
 
-  void _alterarDestino() {
-    _fecharBusca();
+  // Tira o destino e a rota do mapa e volta a câmera para a pessoa.
+  void _limparDestino() {
     setState(() {
       _rota = null;
       _destinoLL = null;
@@ -570,6 +564,11 @@ class _HomePageState extends State<HomePage> {
     if (_posicao != null) {
       _mapa?.animateCamera(CameraUpdate.newLatLngZoom(_posicao!, 17));
     }
+  }
+
+  void _alterarDestino() {
+    _fecharBusca();
+    _limparDestino();
   }
 
   Future<void> _cancelar() async {
@@ -582,15 +581,8 @@ class _HomePageState extends State<HomePage> {
   void _novaCorrida() {
     _destino.clear();
     _limparAcompanhamento();
-    setState(() {
-      _corridaId = null;
-      _rota = null;
-      _destinoLL = null;
-      _valor = null;
-    });
-    if (_posicao != null) {
-      _mapa?.animateCamera(CameraUpdate.newLatLngZoom(_posicao!, 17));
-    }
+    _corridaId = null;
+    _limparDestino();
   }
 
   @override
@@ -932,11 +924,11 @@ class _HomePageState extends State<HomePage> {
         Text(_rota!.resumo),
         const SizedBox(height: 4),
         Text(
-          'Valor: ${_real(_valor!)}',
+          'Valor: ${formatarReal(_valor!)}',
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         Text(
-          'Até 3 km: ${_real(_valorBase)} • depois ${_real(_precoKmExtra)} por km',
+          'Até 3 km: ${formatarReal(_valorBase)} • depois ${formatarReal(_precoKmExtra)} por km',
           style: const TextStyle(fontSize: 12, color: Colors.black54),
         ),
         const SizedBox(height: 10),
@@ -1004,7 +996,7 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 4),
             Text('Destino: ${dados['destinoTexto']}'),
             if (valor != null)
-              Text('${_real(valor)}${forma != null ? ' • $forma' : ''}'),
+              Text('${formatarReal(valor)}${forma != null ? ' • $forma' : ''}'),
             const SizedBox(height: 12),
             if (encerrada)
               FilledButton(
