@@ -16,10 +16,14 @@ import 'lugares.dart';
 import 'menu_lateral.dart';
 import 'rota.dart';
 
-// Preço: valor fixo até 3 km; depois, valor por km extra (proporcional).
-const _valorBase = 10.0;
-const _kmIncluidos = 3.0;
-const _precoKmExtra = 1.76;
+// Preço: valor fixo até X km; depois, valor por km extra (proporcional).
+// O admin muda em config/app (precoBase, kmIncluidos, precoKm).
+var _valorBase = 10.0;
+var _kmIncluidos = 3.0;
+var _precoKmExtra = 1.76;
+
+double _numCfg(dynamic v, double padrao) =>
+    v is num && v > 0 ? v.toDouble() : padrao;
 
 double _calcularValor(double km) {
   if (km <= _kmIncluidos) return _valorBase;
@@ -106,6 +110,7 @@ class _HomePageState extends State<HomePage> {
   String _categoria = 'piracar';
   bool _motoAtiva = false;
   StreamSubscription<bool>? _subMoto;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _subPreco;
 
   List<Categoria> get _categoriasVisiveis => [
         catPiracar,
@@ -179,6 +184,18 @@ class _HomePageState extends State<HomePage> {
         if (!v && _categoria == 'moto') _categoria = 'piracar';
       });
     });
+    _subPreco = _db.collection('config').doc('app').snapshots().listen((s) {
+      final d = s.data() ?? const {};
+      _valorBase = _numCfg(d['precoBase'], 10.0);
+      _kmIncluidos = (d['kmIncluidos'] is num && (d['kmIncluidos'] as num) >= 0)
+          ? (d['kmIncluidos'] as num).toDouble()
+          : 3.0;
+      _precoKmExtra = _numCfg(d['precoKm'], 1.76);
+      // destino já escolhido e ainda sem pedir: atualiza o valor
+      if (mounted && _rota != null && _corridaId == null) {
+        setState(() => _valor = _calcularValor(_rota!.metros / 1000));
+      }
+    }, onError: (_) {});
     _carregarIcones();
     _localizar();
     _ouvirLivres();
@@ -245,6 +262,7 @@ class _HomePageState extends State<HomePage> {
     _focoBusca.dispose();
     _subLivres?.cancel();
     _subMoto?.cancel();
+    _subPreco?.cancel();
     _relogio?.cancel();
     _despachante?.cancel();
     _subCorrida?.cancel();
