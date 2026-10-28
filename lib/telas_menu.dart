@@ -486,7 +486,6 @@ class ConfiguracoesPage extends StatelessWidget {
               CartaoDados(linhas: [
                 LinhaDado('Nome', nome),
                 LinhaDado('CPF', formatarCpf(p['cpf'] as String?)),
-                LinhaDado('RG', (p['rg'] ?? '').toString()),
                 LinhaDado('Telefone',
                     formatarTelefone(p['telefone'] as String?)),
                 LinhaDado('E-mail',

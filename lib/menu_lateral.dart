@@ -173,8 +173,6 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
   late final _nome = TextEditingController(text: widget.nomeAtual);
   late final _cpf = TextEditingController(
       text: _soDigitos(widget.perfil['cpf'] as String? ?? ''));
-  late final _rg = TextEditingController(
-      text: (widget.perfil['rg'] as String? ?? '').trim());
   late final _telefone = TextEditingController(
       text: _soDigitos(widget.perfil['telefone'] as String? ?? ''));
   late final _nascimento = TextEditingController(
@@ -185,7 +183,6 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
   void dispose() {
     _nome.dispose();
     _cpf.dispose();
-    _rg.dispose();
     _telefone.dispose();
     _nascimento.dispose();
     super.dispose();
@@ -202,7 +199,6 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
           .update({
         'nome': _nome.text.trim(),
         'cpf': _soDigitos(_cpf.text),
-        'rg': _rg.text.trim().toUpperCase(),
         'telefone': _soDigitos(_telefone.text),
         'nascimento': nasc.length == 8
             ? '${nasc.substring(0, 2)}/${nasc.substring(2, 4)}/${nasc.substring(4)}'
@@ -271,12 +267,6 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
               validator: (v) => (v ?? '').isEmpty || cpfValido(v!)
                   ? null
                   : 'CPF inválido',
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _rg,
-              textCapitalization: TextCapitalization.characters,
-              decoration: _decoracao('RG', Icons.credit_card_outlined),
             ),
             const SizedBox(height: 16),
             TextFormField(

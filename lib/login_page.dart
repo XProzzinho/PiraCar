@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'cadastro_passageiro.dart';
 import 'creditos.dart';
 
 const _azulNoite = Color(0xFF0B2545);
@@ -22,16 +22,13 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _nome = TextEditingController();
   final _email = TextEditingController();
   final _senha = TextEditingController();
-  bool _cadastro = false;
   bool _carregando = false;
   bool _mostrarSenha = false;
 
   @override
   void dispose() {
-    _nome.dispose();
     _email.dispose();
     _senha.dispose();
     super.dispose();
@@ -42,50 +39,34 @@ class _LoginPageState extends State<LoginPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<void> _salvarPerfil(User user, String nome) {
-    return FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-      'nome': nome,
-      'email': user.email,
-      'role': 'passageiro',
-      'criadoEm': FieldValue.serverTimestamp(),
-    });
-  }
-
   Future<void> _enviar() async {
     setState(() => _carregando = true);
     try {
-      final auth = FirebaseAuth.instance;
-      if (_cadastro) {
-        final cred = await auth.createUserWithEmailAndPassword(
-            email: _email.text.trim(), password: _senha.text);
-        await _salvarPerfil(cred.user!, _nome.text.trim());
-      } else {
-        await auth.signInWithEmailAndPassword(
-            email: _email.text.trim(), password: _senha.text);
-      }
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _email.text.trim(), password: _senha.text);
     } on FirebaseAuthException catch (e) {
-      _aviso(e.message ?? 'Erro ao entrar');
+      _aviso(switch (e.code) {
+        'invalid-credential' ||
+        'wrong-password' ||
+        'user-not-found' =>
+          'E-mail ou senha incorretos.',
+        'invalid-email' => 'E-mail inválido.',
+        _ => e.message ?? 'Erro ao entrar',
+      });
+    } catch (e) {
+      _aviso('Não foi possível entrar: $e');
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
   }
 
-  Future<void> _entrarComGoogle() async {
-    setState(() => _carregando = true);
-    try {
-      final cred =
-          await FirebaseAuth.instance.signInWithProvider(GoogleAuthProvider());
-      final user = cred.user!;
-      final doc =
-          FirebaseFirestore.instance.collection('users').doc(user.uid);
-      if (!(await doc.get()).exists) {
-        await _salvarPerfil(user, user.displayName ?? '');
-      }
-    } on FirebaseAuthException catch (e) {
-      _aviso(e.message ?? 'Erro ao entrar com Google');
-    } finally {
-      if (mounted) setState(() => _carregando = false);
-    }
+  void _abrirCadastro() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CadastroPassageiroPage(email: _email.text.trim()),
+      ),
+    );
   }
 
   Future<void> _esqueciSenha() async {
@@ -204,28 +185,16 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         const SizedBox(height: 20),
-        Text(_cadastro ? 'Crie sua conta' : 'Bem-vindo de volta',
-            style: const TextStyle(
+        const Text('Bem-vindo de volta',
+            style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
                 color: _texto)),
         const SizedBox(height: 4),
-        Text(
-            _cadastro
-                ? 'Leva menos de um minuto.'
-                : 'Entre para pedir sua próxima viagem.',
-            style: const TextStyle(fontSize: 15, color: _textoSuave)),
+        const Text('Entre para pedir sua próxima viagem.',
+            style: TextStyle(fontSize: 15, color: _textoSuave)),
         const SizedBox(height: 20),
-        if (_cadastro) ...[
-          _rotulo('Nome'),
-          TextField(
-            controller: _nome,
-            textCapitalization: TextCapitalization.words,
-            decoration: _decoracao('Seu nome', Icons.person_outline),
-          ),
-          const SizedBox(height: 16),
-        ],
         _rotulo('E-mail'),
         TextField(
           controller: _email,
@@ -236,21 +205,18 @@ class _LoginPageState extends State<LoginPage> {
         const SizedBox(height: 16),
         _rotulo(
           'Senha',
-          acao: _cadastro
-              ? null
-              : GestureDetector(
-                  onTap: _esqueciSenha,
-                  child: const Text('Esqueci a senha',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _azul)),
-                ),
+          acao: GestureDetector(
+            onTap: _esqueciSenha,
+            child: const Text('Esqueci a senha',
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w600, color: _azul)),
+          ),
         ),
         TextField(
           controller: _senha,
           obscureText: !_mostrarSenha,
           autofillHints: const [AutofillHints.password],
+          onSubmitted: (_) => _carregando ? null : _enviar(),
           decoration: _decoracao(
             'Sua senha',
             Icons.lock_outline,
@@ -283,63 +249,26 @@ class _LoginPageState extends State<LoginPage> {
                     height: 22,
                     child: CircularProgressIndicator(
                         strokeWidth: 2.5, color: Colors.white))
-                : Row(
+                : const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(_cadastro ? 'Criar conta' : 'Entrar'),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward, size: 18),
+                      Text('Entrar'),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward, size: 18),
                     ],
                   ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        const Row(
-          children: [
-            Expanded(child: Divider(color: _campoBorda)),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text('ou continue com',
-                  style: TextStyle(fontSize: 13, color: _textoSuave)),
-            ),
-            Expanded(child: Divider(color: _campoBorda)),
-          ],
-        ),
-        const SizedBox(height: 20),
-        SizedBox(
-          height: 54,
-          child: OutlinedButton(
-            onPressed: _carregando ? null : _entrarComGoogle,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF1F1F1F),
-              side: const BorderSide(color: Color(0xFFDADCE0), width: 1.5),
-              shape: botaoForma,
-              textStyle:
-                  const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CustomPaint(painter: _GooglePainter())),
-                SizedBox(width: 12),
-                Text('Entrar com Google'),
-              ],
-            ),
           ),
         ),
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(_cadastro ? 'Já tem conta? ' : 'Ainda não tem conta? ',
-                style: const TextStyle(fontSize: 14, color: _textoSuave)),
+            const Text('Ainda não tem conta? ',
+                style: TextStyle(fontSize: 14, color: _textoSuave)),
             GestureDetector(
-              onTap: () => setState(() => _cadastro = !_cadastro),
-              child: Text(_cadastro ? 'Entrar' : 'Cadastre-se',
-                  style: const TextStyle(
+              onTap: _carregando ? null : _abrirCadastro,
+              child: const Text('Cadastre-se',
+                  style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: _azul)),
@@ -487,35 +416,6 @@ class _MapaPainter extends CustomPainter {
     canvas.drawCircle(const Offset(330, 45), 8, Paint()..color = _amarelo);
 
     canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Logo "G" do Google desenhado em quatro arcos coloridos.
-class _GooglePainter extends CustomPainter {
-  const _GooglePainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final traco = w * 0.2;
-    final rect = Rect.fromCircle(
-        center: Offset(w / 2, w / 2), radius: (w - traco) / 2);
-    Paint cor(int c) => Paint()
-      ..color = Color(c)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = traco;
-
-    const grau = math.pi / 180;
-    canvas.drawArc(rect, -40 * grau, -100 * grau, false, cor(0xFFEA4335));
-    canvas.drawArc(rect, -140 * grau, -80 * grau, false, cor(0xFFFBBC05));
-    canvas.drawArc(rect, 140 * grau, -95 * grau, false, cor(0xFF34A853));
-    canvas.drawArc(rect, 45 * grau, -45 * grau, false, cor(0xFF4285F4));
-    canvas.drawRect(
-        Rect.fromLTWH(w / 2, w / 2 - traco / 2, w / 2 - traco / 4, traco),
-        Paint()..color = const Color(0xFF4285F4));
   }
 
   @override
