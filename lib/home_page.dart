@@ -16,6 +16,7 @@ import 'foto.dart';
 import 'lugares.dart';
 import 'menu_lateral.dart';
 import 'rota.dart';
+import 'cores.dart';
 
 // Preço: valor fixo até X km; depois, valor por km extra (proporcional).
 // O admin muda em config/app (precoBase, kmIncluidos, precoKm).
@@ -708,6 +709,7 @@ class _HomePageState extends State<HomePage> {
       body: Stack(
         children: [
           GoogleMap(
+            style: estiloMapa,
             initialCameraPosition:
                 const CameraPosition(target: _centroPirapora, zoom: 15),
             myLocationEnabled: _posicao != null,
@@ -802,8 +804,8 @@ class _HomePageState extends State<HomePage> {
                   width: double.infinity,
                   constraints: BoxConstraints(
                       maxHeight: buscando ? altura * 0.78 : altura * 0.6),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: sup(Colors.white),
                     borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
                     boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 14)],
                   ),
@@ -852,11 +854,11 @@ class _HomePageState extends State<HomePage> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Para onde vamos?',
+        Text('Para onde vamos?',
             style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
-                color: azulNoite,
+                color: tx(azulNoite),
                 letterSpacing: -0.3)),
         const SizedBox(height: 10),
         TextField(
@@ -888,7 +890,7 @@ class _HomePageState extends State<HomePage> {
                 : null,
             contentPadding: const EdgeInsets.symmetric(vertical: 18),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: sup(Colors.white),
             enabledBorder: borda,
             border: borda,
             focusedBorder: borda.copyWith(
@@ -929,7 +931,7 @@ class _HomePageState extends State<HomePage> {
                     fontWeight: FontWeight.w700,
                     color: motoristas > 0
                         ? const Color(0xFF2E7D32)
-                        : Colors.black54),
+                        : fr(Colors.black54)),
               ),
             ],
           ),
@@ -943,10 +945,10 @@ class _HomePageState extends State<HomePage> {
   Widget _listaSugestoes() {
     final texto = _destino.text.trim();
     if (texto.length < 3) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.only(top: 18),
         child: Text('Digite pelo menos 3 letras do endereço.',
-            style: TextStyle(color: Colors.black54)),
+            style: TextStyle(color: fr(Colors.black54))),
       );
     }
     if (_buscandoSug && _sugestoes.isEmpty) {
@@ -959,21 +961,21 @@ class _HomePageState extends State<HomePage> {
       return Padding(
         padding: const EdgeInsets.only(top: 18),
         child: Text('Nada encontrado para "$texto". Tente outro endereço.',
-            style: const TextStyle(color: Colors.black54)),
+            style: TextStyle(color: fr(Colors.black54))),
       );
     }
     return ListView(
       shrinkWrap: true,
       padding: const EdgeInsets.only(top: 6),
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(4, 8, 4, 4),
           child: Text('SUGESTÕES',
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
-                  color: Colors.black54)),
+                  color: fr(Colors.black54))),
         ),
         for (final s in _sugestoes) _itemSugestao(s),
       ],
@@ -987,16 +989,16 @@ class _HomePageState extends State<HomePage> {
       onTap: _calculando ? null : () => _escolher(s),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFEEF0F3))),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: ln(Color(0xFFEEF0F3)))),
         ),
         child: Row(
           children: [
             Container(
               width: 38,
               height: 38,
-              decoration: const BoxDecoration(
-                  color: Color(0xFFEEF2F7), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                  color: fu(Color(0xFFEEF2F7)), shape: BoxShape.circle),
               child: const Icon(Icons.place, color: Color(0xFFE53935), size: 20),
             ),
             const SizedBox(width: 12),
@@ -1020,8 +1022,8 @@ class _HomePageState extends State<HomePage> {
                     Text(s.secundario,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 13, color: Colors.black54)),
+                        style: TextStyle(
+                            fontSize: 13, color: fr(Colors.black54))),
                 ],
               ),
             ),
@@ -1031,7 +1033,7 @@ class _HomePageState extends State<HomePage> {
                 child: Text(
                     '${(s.metros! / 1000).toStringAsFixed(1).replaceAll('.', ',')} km',
                     style:
-                        const TextStyle(fontSize: 12, color: Colors.black54)),
+                        TextStyle(fontSize: 12, color: fr(Colors.black54))),
               ),
           ],
         ),
@@ -1062,12 +1064,12 @@ class _HomePageState extends State<HomePage> {
                     fontSize: 17, fontWeight: FontWeight.w900)),
           ),
         const SizedBox(height: 8),
-        const Text('PAGAMENTO',
+        Text('PAGAMENTO',
             style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5,
-                color: Color(0xFF64748B))),
+                color: fr(Color(0xFF64748B)))),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -1078,9 +1080,9 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         const SizedBox(height: 8),
-        const Center(
+        Center(
           child: Text('Você paga direto ao motorista no fim da corrida',
-              style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+              style: TextStyle(fontSize: 12, color: fr(Color(0xFF94A3B8)))),
         ),
         const SizedBox(height: 14),
         Row(
@@ -1092,14 +1094,14 @@ class _HomePageState extends State<HomePage> {
                 onPressed: _alterarDestino,
                 style: OutlinedButton.styleFrom(
                   padding: EdgeInsets.zero,
-                  side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                  side: BorderSide(color: ln(Color(0xFFE2E8F0)), width: 1.5),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20)),
                 ),
-                child: const Tooltip(
+                child: Tooltip(
                   message: 'Alterar destino',
                   child: Icon(Icons.edit_location_alt_outlined,
-                      color: Color(0xFF334155)),
+                      color: tx(Color(0xFF334155))),
                 ),
               ),
             ),
@@ -1137,11 +1139,11 @@ class _HomePageState extends State<HomePage> {
   Widget _botaoPagamento(String id, String nome) {
     final sel = _pagamento == id;
     return Material(
-      color: sel ? const Color(0xFF0F172A) : Colors.white,
+      color: sel ? const Color(0xFF0F172A) : sup(Colors.white),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-            color: sel ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+            color: sel ? const Color(0xFF0F172A) : ln(Color(0xFFE2E8F0)),
             width: 1.5),
       ),
       child: InkWell(
@@ -1158,13 +1160,13 @@ class _HomePageState extends State<HomePage> {
                       ? (id == 'pix'
                           ? const Color(0xFF5EEAD4)
                           : Colors.white)
-                      : const Color(0xFF475569)),
+                      : fr(Color(0xFF475569))),
               const SizedBox(height: 4),
               Text(nome,
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: sel ? FontWeight.w700 : FontWeight.w600,
-                      color: sel ? Colors.white : const Color(0xFF334155))),
+                      color: sel ? Colors.white : tx(Color(0xFF334155)))),
             ],
           ),
         ),
@@ -1298,7 +1300,7 @@ class _CartaoMotorista extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFFF4F6FA),
+            color: fu(Color(0xFFF4F6FA)),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -1338,7 +1340,7 @@ class _CartaoMotorista extends StatelessWidget {
                                   : media
                                       .toStringAsFixed(1)
                                       .replaceAll('.', ','),
-                              style: const TextStyle(color: Colors.black54),
+                              style: TextStyle(color: fr(Colors.black54)),
                             ),
                           ],
                         );
@@ -1346,7 +1348,7 @@ class _CartaoMotorista extends StatelessWidget {
                     ),
                     if (carro.isNotEmpty)
                       Text(carro,
-                          style: const TextStyle(color: Colors.black54)),
+                          style: TextStyle(color: fr(Colors.black54))),
                   ],
                 ),
               ),
@@ -1355,9 +1357,9 @@ class _CartaoMotorista extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: sup(Colors.white),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.black26),
+                    border: Border.all(color: ln(Colors.black26)),
                   ),
                   child: Text(placa.toUpperCase(),
                       style: const TextStyle(
@@ -1382,13 +1384,13 @@ class _BarraTopo extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
         child: Material(
-          color: Colors.white,
+          color: sup(Colors.white),
           shape: const CircleBorder(),
           elevation: 4,
           shadowColor: Colors.black38,
           child: IconButton(
             tooltip: 'Menu',
-            icon: const Icon(Icons.menu_rounded, size: 26, color: azulNoite),
+            icon: Icon(Icons.menu_rounded, size: 26, color: tx(azulNoite)),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
@@ -1407,7 +1409,7 @@ class _Atalho extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFFFF4D6),
+      color: ta(Color(0xFFFFF4D6)),
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -1415,8 +1417,8 @@ class _Atalho extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Text('$emoji $texto',
-              style: const TextStyle(
-                  color: azulNoite, fontWeight: FontWeight.w700)),
+              style: TextStyle(
+                  color: tx(azulNoite), fontWeight: FontWeight.w700)),
         ),
       ),
     );

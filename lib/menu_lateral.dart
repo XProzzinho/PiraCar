@@ -8,6 +8,7 @@ import 'foto.dart';
 import 'foto_trocar.dart';
 import 'menu_visual.dart';
 import 'telas_menu.dart';
+import 'cores.dart';
 
 const azulNoite = Color(0xFF0B2545);
 const amarelo = Color(0xFFFFC24B);
@@ -222,14 +223,14 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
   InputDecoration _decoracao(String rotulo, IconData icone, {String? dica}) {
     final borda = OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+      borderSide: BorderSide(color: ln(Color(0xFFE2E8F0)), width: 1.5),
     );
     return InputDecoration(
       labelText: rotulo,
       hintText: dica,
       prefixIcon: Icon(icone, size: 20),
       filled: true,
-      fillColor: const Color(0xFFF4F6FA),
+      fillColor: fu(Color(0xFFF4F6FA)),
       enabledBorder: borda,
       border: borda,
       focusedBorder: borda.copyWith(

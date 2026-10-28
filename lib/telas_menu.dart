@@ -8,6 +8,7 @@ import 'foto.dart';
 import 'foto_trocar.dart';
 import 'menu_lateral.dart';
 import 'menu_visual.dart';
+import 'cores.dart';
 
 const _fundo = Color(0xFFF4F6FA);
 
@@ -63,12 +64,12 @@ class MinhasViagensPage extends StatelessWidget {
               return tb.compareTo(ta);
             });
           if (docs.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
                 padding: EdgeInsets.all(32),
                 child: Text('Você ainda não fez nenhuma viagem.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.black54, fontSize: 16)),
+                    style: TextStyle(color: fr(Colors.black54), fontSize: 16)),
               ),
             );
           }
@@ -84,7 +85,7 @@ class MinhasViagensPage extends StatelessWidget {
               return Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: sup(Colors.white),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Column(
@@ -92,25 +93,25 @@ class MinhasViagensPage extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.place, color: corMenuTitulo),
+                        Icon(Icons.place, color: tx(corMenuTitulo)),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             (c['destinoTexto'] ?? 'Destino').toString(),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: corMenuTitulo),
+                                color: tx(corMenuTitulo)),
                           ),
                         ),
                         if (valor is num)
                           Text(formatarReal(valor),
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
-                                  color: corMenuTitulo)),
+                                  color: tx(corMenuTitulo))),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -210,11 +211,11 @@ class _CupomPageState extends State<CupomPage> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Text('Digite o código do cupom',
+          Text('Digite o código do cupom',
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: corMenuTitulo)),
+                  color: tx(corMenuTitulo))),
           const SizedBox(height: 12),
           TextField(
             controller: _codigo,
@@ -224,7 +225,7 @@ class _CupomPageState extends State<CupomPage> {
               hintText: 'EX: PIRACAR10',
               prefixIcon: const Icon(Icons.confirmation_number_outlined),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: sup(Colors.white),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: const BorderSide(color: corMenuTitulo, width: 2),
@@ -267,18 +268,18 @@ class _CupomPageState extends State<CupomPage> {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF4D6),
+                        color: ta(Color(0xFFFFF4D6)),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.local_offer_outlined,
-                              color: corMenuTitulo),
+                          Icon(Icons.local_offer_outlined,
+                              color: tx(corMenuTitulo)),
                           const SizedBox(width: 10),
                           Text(c,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontWeight: FontWeight.w800,
-                                  color: corMenuTitulo)),
+                                  color: tx(corMenuTitulo))),
                         ],
                       ),
                     ),
@@ -339,11 +340,11 @@ class DivulgacaoPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: sup(Colors.white),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: const Text(mensagem,
-                style: TextStyle(fontSize: 16, color: corMenuTitulo)),
+            child: Text(mensagem,
+                style: TextStyle(fontSize: 16, color: tx(corMenuTitulo))),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -420,8 +421,8 @@ class AjudaPage extends StatelessWidget {
               child: ExpansionTile(
                 shape: const Border(),
                 title: Text(p.$1,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, color: corMenuTitulo)),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700, color: tx(corMenuTitulo))),
                 childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 expandedCrossAxisAlignment: CrossAxisAlignment.start,
                 children: [

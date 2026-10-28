@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'cadastro_passageiro.dart';
 import 'creditos.dart';
+import 'cores.dart';
 
 const _azulNoite = Color(0xFF0B2545);
 const _azul = Color(0xFF1565C0);
@@ -90,8 +91,8 @@ class _LoginPageState extends State<LoginPage> {
     );
     return InputDecoration(
       hintText: dica,
-      hintStyle: const TextStyle(color: Color(0xFF8A94A6)),
-      prefixIcon: Icon(icone, color: const Color(0xFF64748B), size: 20),
+      hintStyle: TextStyle(color: fr(Color(0xFF8A94A6))),
+      prefixIcon: Icon(icone, color: fr(Color(0xFF64748B)), size: 20),
       suffixIcon: sufixo,
       filled: true,
       fillColor: _campoFundo,
@@ -109,10 +110,10 @@ class _LoginPageState extends State<LoginPage> {
       child: Row(
         children: [
           Text(texto,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF334155))),
+                  color: tx(Color(0xFF334155)))),
           const Spacer(),
           if (acao != null) acao,
         ],
@@ -154,8 +155,8 @@ class _LoginPageState extends State<LoginPage> {
                   constraints: BoxConstraints(
                       minHeight: math.max(0.0, c.maxHeight - alturaHero)),
                   padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: sup(Colors.white),
                     borderRadius:
                         BorderRadius.vertical(top: Radius.circular(30)),
                   ),
@@ -226,7 +227,7 @@ class _LoginPageState extends State<LoginPage> {
                   _mostrarSenha
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
-                  color: const Color(0xFF64748B),
+                  color: fr(Color(0xFF64748B)),
                   size: 20),
               onPressed: () => setState(() => _mostrarSenha = !_mostrarSenha),
             ),

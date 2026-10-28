@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'cores.dart';
 
 /// Fale conosco: conversa entre o passageiro e a administração.
 ///
@@ -111,7 +112,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
+      backgroundColor: fu(Color(0xFFF4F6FA)),
       appBar: AppBar(
         title: Text(widget.titulo),
         backgroundColor: _azulNoite,
@@ -151,7 +152,7 @@ class _ChatPageState extends State<ChatPage> {
                             ? 'Nenhuma mensagem ainda.'
                             : 'Mande sua mensagem. A equipe PiraCar responde por aqui.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.black54),
+                        style: TextStyle(color: fr(Colors.black54)),
                       ),
                     ),
                   );
@@ -187,14 +188,14 @@ class _ChatPageState extends State<ChatPage> {
                                 style: TextStyle(
                                     fontSize: 15,
                                     color:
-                                        minha ? Colors.white : _azulNoite)),
+                                        minha ? Colors.white : tx(_azulNoite))),
                             const SizedBox(height: 2),
                             Text(_hora(m['em']),
                                 style: TextStyle(
                                     fontSize: 11,
                                     color: minha
                                         ? const Color(0xFFC9D6EA)
-                                        : Colors.black45)),
+                                        : fr(Colors.black45))),
                           ],
                         ),
                       ),
@@ -219,7 +220,7 @@ class _ChatPageState extends State<ChatPage> {
                       decoration: InputDecoration(
                         hintText: 'Escreva sua mensagem',
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: sup(Colors.white),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 18, vertical: 12),
                         border: OutlineInputBorder(
@@ -236,7 +237,7 @@ class _ChatPageState extends State<ChatPage> {
                     child: IconButton(
                       tooltip: 'Enviar',
                       onPressed: _enviando ? null : _enviar,
-                      icon: const Icon(Icons.send_rounded, color: _azulNoite),
+                      icon: Icon(Icons.send_rounded, color: _azulNoite),
                     ),
                   ),
                 ],
