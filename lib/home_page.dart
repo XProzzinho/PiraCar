@@ -11,6 +11,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'aviso.dart';
 import 'carro_icone.dart';
 import 'categorias.dart';
+import 'chat_corrida.dart';
 import 'foto.dart';
 import 'lugares.dart';
 import 'menu_lateral.dart';
@@ -781,42 +782,59 @@ class _HomePageState extends State<HomePage> {
           ),
           Align(
             alignment: Alignment.bottomCenter,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              width: double.infinity,
-              constraints: BoxConstraints(
-                  maxHeight: buscando ? altura * 0.78 : altura * 0.6),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 14)],
-              ),
-              child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(top: 10, bottom: 4),
-                      width: 40,
-                      height: 5,
-                      decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(3)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (_corridaId != null &&
+                    chatAberto(_status) &&
+                    _dadosCorrida?['motoristaId'] is String)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 0, 16, 12),
+                    child: BolinhaChat(
+                      corridaId: _corridaId!,
+                      souMotorista: false,
+                      outroId: _dadosCorrida?['motoristaId'] as String?,
                     ),
-                    Flexible(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 6, 18, 16),
-                        child: _corridaId != null
-                            ? SingleChildScrollView(child: _painelCorrida())
-                            : (_rota != null
-                                ? SingleChildScrollView(child: _resumo())
-                                : _buscaDestino(livres.length)),
-                      ),
+                  ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  width: double.infinity,
+                  constraints: BoxConstraints(
+                      maxHeight: buscando ? altura * 0.78 : altura * 0.6),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 14)],
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.only(top: 10, bottom: 4),
+                          width: 40,
+                          height: 5,
+                          decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(3)),
+                        ),
+                        Flexible(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 6, 18, 16),
+                            child: _corridaId != null
+                                ? SingleChildScrollView(child: _painelCorrida())
+                                : (_rota != null
+                                    ? SingleChildScrollView(child: _resumo())
+                                    : _buscaDestino(livres.length)),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
