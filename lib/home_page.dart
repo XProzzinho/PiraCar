@@ -216,6 +216,26 @@ class _HomePageState extends State<HomePage> {
     _carregarIcones();
     _localizar();
     _ouvirLivres();
+    _cancelarPedidosAbandonados();
+  }
+
+  // Pedido que ficou "procurando motorista" quando o app foi fechado não
+  // tem mais ninguém esperando: cancela ao abrir, para não virar corrida
+  // fantasma no app do motorista.
+  Future<void> _cancelarPedidosAbandonados() async {
+    try {
+      final q = await _db
+          .collection('corridas')
+          .where('passageiroId', isEqualTo: _uid)
+          .get();
+      for (final d in q.docs) {
+        if (d.data()['status'] != 'solicitada' || d.id == _corridaId) continue;
+        await d.reference.update({
+          'status': 'cancelada',
+          'canceladoPor': 'app_fechado',
+        });
+      }
+    } catch (_) {}
   }
 
   void _ouvirLivres() {
@@ -499,6 +519,7 @@ class _HomePageState extends State<HomePage> {
   String? _rodadaLocal;
   DateTime? _ofertadoDesde;
   bool _despachando = false;
+  DateTime _ultimoSinal = DateTime.fromMillisecondsSinceEpoch(0);
 
   void _ligarDespacho(bool ligar) {
     _despachante?.cancel();
@@ -515,6 +536,16 @@ class _HomePageState extends State<HomePage> {
     final id = _corridaId;
     if (_despachando || d == null || id == null) return;
     if (d['status'] != 'solicitada') return;
+    // sinal de vida: o motorista ignora pedido sem sinal há mais de 3 min
+    final agora = DateTime.now();
+    if (agora.difference(_ultimoSinal).inSeconds >= 30) {
+      _ultimoSinal = agora;
+      _db
+          .collection('corridas')
+          .doc(id)
+          .update({'ativoEm': FieldValue.serverTimestamp()})
+          .catchError((_) {});
+    }
     final atual = d['ofertadoPara'] as String?;
     final recusados = ((d['recusadoPor'] as List?) ?? const [])
         .whereType<String>()
