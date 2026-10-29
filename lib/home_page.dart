@@ -23,14 +23,19 @@ import 'cores.dart';
 var _valorBase = 10.0;
 var _kmIncluidos = 3.0;
 var _precoKmExtra = 1.76;
+// Tarifa dinâmica (admin: config/app.tarifaDinamica e tarifaDinamicaPct).
+var _dinamicaLigada = false;
+var _dinamicaPct = 0.0;
 
 double _numCfg(dynamic v, double padrao) =>
     v is num && v > 0 ? v.toDouble() : padrao;
 
 double _calcularValor(double km) {
-  if (km <= _kmIncluidos) return _valorBase;
-  return double.parse(
-      (_valorBase + (km - _kmIncluidos) * _precoKmExtra).toStringAsFixed(2));
+  final base = km <= _kmIncluidos
+      ? _valorBase
+      : _valorBase + (km - _kmIncluidos) * _precoKmExtra;
+  final fator = _dinamicaLigada && _dinamicaPct > 0 ? 1 + _dinamicaPct / 100 : 1;
+  return double.parse((base * fator).toStringAsFixed(2));
 }
 
 // Desenha um ícone (o carrinho) dentro de um círculo colorido.
@@ -197,6 +202,10 @@ class _HomePageState extends State<HomePage> {
           ? (d['kmIncluidos'] as num).toDouble()
           : 3.0;
       _precoKmExtra = _numCfg(d['precoKm'], 1.76);
+      _dinamicaLigada = d['tarifaDinamica'] == true;
+      _dinamicaPct = d['tarifaDinamicaPct'] is num
+          ? (d['tarifaDinamicaPct'] as num).toDouble()
+          : 0.0;
       // destino já escolhido e ainda sem pedir: atualiza o valor
       if (mounted && _rota != null && _corridaId == null) {
         setState(() => _valor = _calcularValor(_rota!.metros / 1000));
