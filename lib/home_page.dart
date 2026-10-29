@@ -843,30 +843,23 @@ class _HomePageState extends State<HomePage> {
                   width: double.infinity,
                   constraints: BoxConstraints(
                       maxHeight: buscando ? altura * 0.78 : altura * 0.6),
-                  decoration: BoxDecoration(
-                    color: _procurando ? null : sup(Colors.white),
-                    gradient: _procurando
-                        ? const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFF14213D), Color(0xFF1F3563)])
-                        : null,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-                    boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 14)],
-                  ),
+                  decoration: decoracaoPainelAzul,
                   child: SafeArea(
                     top: false,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Flexible(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-                            child: _corridaId != null
-                                ? SingleChildScrollView(child: _painelCorrida())
-                                : (_rota != null
-                                    ? SingleChildScrollView(child: _resumo())
-                                    : _buscaDestino(livres.length)),
+                          child: Theme(
+                            data: temaPainelAzul(),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                              child: _corridaId != null
+                                  ? SingleChildScrollView(child: _painelCorrida())
+                                  : (_rota != null
+                                      ? SingleChildScrollView(child: _resumo())
+                                      : _buscaDestino(livres.length)),
+                            ),
                           ),
                         ),
                       ],
@@ -911,21 +904,21 @@ class _HomePageState extends State<HomePage> {
             IconButton(
               tooltip: 'Voltar',
               icon: Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 20, color: tx(azulNoite)),
+                  size: 20, color: ptx(azulNoite)),
               onPressed: () => setState(() => _hospitais = false),
             ),
             Text('Hospitais',
                 style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: tx(azulNoite),
+                    color: ptx(azulNoite),
                     letterSpacing: -0.3)),
           ],
         ),
         Padding(
           padding: const EdgeInsets.only(left: 48, bottom: 4),
           child: Text('Toque no hospital para ir direto',
-              style: TextStyle(fontSize: 13, color: fr(Colors.black54))),
+              style: TextStyle(fontSize: 13, color: pfr(Colors.black54))),
         ),
         if (_calculando)
           const Padding(
@@ -936,7 +929,7 @@ class _HomePageState extends State<HomePage> {
           Padding(
             padding: const EdgeInsets.only(top: 10),
             child: Material(
-              color: fu(const Color(0xFFF4F6FA)),
+              color: pfu(const Color(0xFFF4F6FA)),
               borderRadius: BorderRadius.circular(18),
               child: InkWell(
                 borderRadius: BorderRadius.circular(18),
@@ -962,11 +955,11 @@ class _HomePageState extends State<HomePage> {
                                 style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
-                                    color: tx(azulNoite))),
+                                    color: ptx(azulNoite))),
                             const SizedBox(height: 3),
                             Text(h.endereco,
                                 style: TextStyle(
-                                    fontSize: 13, color: fr(Colors.black54))),
+                                    fontSize: 13, color: pfr(Colors.black54))),
                             const SizedBox(height: 3),
                             const Text('Aberto 24 horas',
                                 style: TextStyle(
@@ -976,7 +969,7 @@ class _HomePageState extends State<HomePage> {
                           ],
                         ),
                       ),
-                      Icon(Icons.chevron_right_rounded, color: tx(azulNoite)),
+                      Icon(Icons.chevron_right_rounded, color: ptx(azulNoite)),
                     ],
                   ),
                 ),
@@ -992,17 +985,17 @@ class _HomePageState extends State<HomePage> {
     final aberta = _buscaAberta;
     final borda = OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: azulNoite, width: 2),
+      borderSide: const BorderSide(color: Colors.white, width: 2),
     );
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Para onde vamos?',
+        const Text('Para onde vamos?',
             style: TextStyle(
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: FontWeight.w800,
-                color: tx(azulNoite),
+                color: Colors.white,
                 letterSpacing: -0.3)),
         const SizedBox(height: 10),
         TextField(
@@ -1013,9 +1006,10 @@ class _HomePageState extends State<HomePage> {
           onSubmitted: (_) => _calcular(),
           textInputAction: TextInputAction.search,
           textCapitalization: TextCapitalization.words,
-          style: const TextStyle(fontSize: 17),
+          style: const TextStyle(fontSize: 17, color: azulNoite),
           decoration: InputDecoration(
             hintText: 'Buscar destino',
+            hintStyle: const TextStyle(color: Color(0xFF6B7280)),
             prefixIcon: Padding(
               padding: const EdgeInsets.all(12),
               child: Container(
@@ -1028,13 +1022,13 @@ class _HomePageState extends State<HomePage> {
             ),
             suffixIcon: aberta
                 ? IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close, color: Color(0xFF6B7280)),
                     onPressed: _fecharBusca,
                   )
                 : null,
             contentPadding: const EdgeInsets.symmetric(vertical: 18),
             filled: true,
-            fillColor: sup(Colors.white),
+            fillColor: Colors.white,
             enabledBorder: borda,
             border: borda,
             focusedBorder: borda.copyWith(
@@ -1075,7 +1069,7 @@ class _HomePageState extends State<HomePage> {
                     fontWeight: FontWeight.w700,
                     color: motoristas > 0
                         ? const Color(0xFF2E7D32)
-                        : fr(Colors.black54)),
+                        : azulClaroPainel),
               ),
             ],
           ),
@@ -1092,7 +1086,7 @@ class _HomePageState extends State<HomePage> {
       return Padding(
         padding: EdgeInsets.only(top: 18),
         child: Text('Digite pelo menos 3 letras do endereço.',
-            style: TextStyle(color: fr(Colors.black54))),
+            style: TextStyle(color: pfr(Colors.black54))),
       );
     }
     if (_buscandoSug && _sugestoes.isEmpty) {
@@ -1105,7 +1099,7 @@ class _HomePageState extends State<HomePage> {
       return Padding(
         padding: const EdgeInsets.only(top: 18),
         child: Text('Nada encontrado para "$texto". Tente outro endereço.',
-            style: TextStyle(color: fr(Colors.black54))),
+            style: TextStyle(color: pfr(Colors.black54))),
       );
     }
     return ListView(
@@ -1119,7 +1113,7 @@ class _HomePageState extends State<HomePage> {
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
-                  color: fr(Colors.black54))),
+                  color: pfr(Colors.black54))),
         ),
         for (final s in _sugestoes) _itemSugestao(s),
       ],
@@ -1134,7 +1128,7 @@ class _HomePageState extends State<HomePage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: ln(Color(0xFFEEF0F3)))),
+          border: Border(bottom: BorderSide(color: pln(Color(0xFFEEF0F3)))),
         ),
         child: Row(
           children: [
@@ -1142,8 +1136,8 @@ class _HomePageState extends State<HomePage> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                  color: fu(Color(0xFFEEF2F7)), shape: BoxShape.circle),
-              child: const Icon(Icons.place, color: Color(0xFFE53935), size: 20),
+                  color: pfu(Color(0xFFEEF2F7)), shape: BoxShape.circle),
+              child: const Icon(Icons.place, color: amareloPainel, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1154,7 +1148,7 @@ class _HomePageState extends State<HomePage> {
                     TextSpan(children: [
                       TextSpan(
                           text: s.principal.substring(0, n),
-                          style: const TextStyle(color: Color(0xFF1565C0))),
+                          style: const TextStyle(color: amareloPainel)),
                       TextSpan(text: s.principal.substring(n)),
                     ]),
                     maxLines: 1,
@@ -1167,7 +1161,7 @@ class _HomePageState extends State<HomePage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontSize: 13, color: fr(Colors.black54))),
+                            fontSize: 13, color: pfr(Colors.black54))),
                 ],
               ),
             ),
@@ -1177,7 +1171,7 @@ class _HomePageState extends State<HomePage> {
                 child: Text(
                     '${(s.metros! / 1000).toStringAsFixed(1).replaceAll('.', ',')} km',
                     style:
-                        TextStyle(fontSize: 12, color: fr(Colors.black54))),
+                        TextStyle(fontSize: 12, color: pfr(Colors.black54))),
               ),
           ],
         ),
@@ -1205,7 +1199,9 @@ class _HomePageState extends State<HomePage> {
             onTap: () => setState(() => _categoria = c.id),
             direita: Text(formatarReal(_precoDe(c)),
                 style: const TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.w900)),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: amareloPainel)),
           ),
         const SizedBox(height: 8),
         Text('PAGAMENTO',
@@ -1213,7 +1209,7 @@ class _HomePageState extends State<HomePage> {
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5,
-                color: fr(Color(0xFF64748B)))),
+                color: pfr(Color(0xFF64748B)))),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -1226,7 +1222,7 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 8),
         Center(
           child: Text('Você paga direto ao motorista no fim da corrida',
-              style: TextStyle(fontSize: 12, color: fr(Color(0xFF94A3B8)))),
+              style: TextStyle(fontSize: 12, color: pfr(Color(0xFF94A3B8)))),
         ),
         const SizedBox(height: 14),
         Row(
@@ -1238,14 +1234,14 @@ class _HomePageState extends State<HomePage> {
                 onPressed: _alterarDestino,
                 style: OutlinedButton.styleFrom(
                   padding: EdgeInsets.zero,
-                  side: BorderSide(color: ln(Color(0xFFE2E8F0)), width: 1.5),
+                  side: const BorderSide(color: Color(0x4DFFFFFF), width: 1.5),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20)),
                 ),
                 child: Tooltip(
                   message: 'Alterar destino',
                   child: Icon(Icons.edit_location_alt_outlined,
-                      color: tx(Color(0xFF334155))),
+                      color: Colors.white),
                 ),
               ),
             ),
@@ -1257,8 +1253,10 @@ class _HomePageState extends State<HomePage> {
                   onPressed:
                       _pedindo || _pagamento == null ? null : _pedirCorrida,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1565C0),
-                    disabledBackgroundColor: const Color(0xFFE2E8F0),
+                    backgroundColor: amareloPainel,
+                    foregroundColor: azulNoite,
+                    disabledBackgroundColor: const Color(0x26FFFFFF),
+                    disabledForegroundColor: const Color(0x99FFFFFF),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20)),
                     textStyle: const TextStyle(
@@ -1283,12 +1281,11 @@ class _HomePageState extends State<HomePage> {
   Widget _botaoPagamento(String id, String nome) {
     final sel = _pagamento == id;
     return Material(
-      color: sel ? const Color(0xFF0F172A) : sup(Colors.white),
+      color: sel ? amareloPainel : const Color(0x1FFFFFFF),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-            color: sel ? const Color(0xFF0F172A) : ln(Color(0xFFE2E8F0)),
-            width: 1.5),
+            color: sel ? amareloPainel : const Color(0x33FFFFFF), width: 1.5),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -1299,18 +1296,13 @@ class _HomePageState extends State<HomePage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(_icones[id],
-                  size: 22,
-                  color: sel
-                      ? (id == 'pix'
-                          ? const Color(0xFF5EEAD4)
-                          : Colors.white)
-                      : fr(Color(0xFF475569))),
+                  size: 22, color: sel ? azulNoite : Colors.white),
               const SizedBox(height: 4),
               Text(nome,
                   style: TextStyle(
                       fontSize: 13,
-                      fontWeight: sel ? FontWeight.w700 : FontWeight.w600,
-                      color: sel ? Colors.white : tx(Color(0xFF334155)))),
+                      fontWeight: sel ? FontWeight.w800 : FontWeight.w600,
+                      color: sel ? azulNoite : Colors.white)),
             ],
           ),
         ),
@@ -1455,10 +1447,24 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 12),
             if (encerrada)
               FilledButton(
-                  onPressed: _novaCorrida, child: const Text('Nova corrida'))
+                  onPressed: _novaCorrida,
+                  style: FilledButton.styleFrom(
+                      backgroundColor: amareloPainel,
+                      foregroundColor: azulNoite,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: const StadiumBorder()),
+                  child: const Text('Nova corrida',
+                      style: TextStyle(fontWeight: FontWeight.w800)))
             else if (status == 'solicitada' || status == 'aceita')
-              OutlinedButton(
-                  onPressed: _cancelar, child: const Text('Cancelar corrida')),
+              TextButton(
+                  onPressed: _cancelar,
+                  style: TextButton.styleFrom(
+                      backgroundColor: const Color(0x1FFFFFFF),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: const StadiumBorder()),
+                  child: const Text('Cancelar corrida',
+                      style: TextStyle(fontWeight: FontWeight.w700))),
           ],
         );
       },
@@ -1547,7 +1553,7 @@ class _CartaoMotorista extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: fu(Color(0xFFF4F6FA)),
+            color: pfu(Color(0xFFF4F6FA)),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -1587,7 +1593,7 @@ class _CartaoMotorista extends StatelessWidget {
                                   : media
                                       .toStringAsFixed(1)
                                       .replaceAll('.', ','),
-                              style: TextStyle(color: fr(Colors.black54)),
+                              style: TextStyle(color: pfr(Colors.black54)),
                             ),
                           ],
                         );
@@ -1595,7 +1601,7 @@ class _CartaoMotorista extends StatelessWidget {
                     ),
                     if (carro.isNotEmpty)
                       Text(carro,
-                          style: TextStyle(color: fr(Colors.black54))),
+                          style: TextStyle(color: pfr(Colors.black54))),
                   ],
                 ),
               ),
@@ -1604,9 +1610,9 @@ class _CartaoMotorista extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: sup(Colors.white),
+                    color: psup(Colors.white),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: ln(Colors.black26)),
+                    border: Border.all(color: pln(Colors.black26)),
                   ),
                   child: Text(placa.toUpperCase(),
                       style: const TextStyle(
@@ -1656,7 +1662,7 @@ class _Atalho extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: ta(Color(0xFFFFF4D6)),
+      color: pta(Color(0xFFFFF4D6)),
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -1665,7 +1671,7 @@ class _Atalho extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Text('$emoji $texto',
               style: TextStyle(
-                  color: tx(azulNoite), fontWeight: FontWeight.w700)),
+                  color: ptx(azulNoite), fontWeight: FontWeight.w700)),
         ),
       ),
     );

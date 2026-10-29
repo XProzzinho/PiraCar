@@ -273,15 +273,15 @@ class CartaoCategoria extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const azul = Color(0xFF1565C0);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: selecionado ? ta(Color(0xFFF3F8FF)) : sup(Colors.white),
+        color: selecionado ? const Color(0x26FFFFFF) : const Color(0x12FFFFFF),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(
-              color: selecionado ? azul : ln(Color(0xFFE2E8F0)), width: 2),
+              color: selecionado ? const Color(0xFFFFD23F) : Colors.transparent,
+              width: 2),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -290,7 +290,16 @@ class CartaoCategoria extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(8, 10, 14, 10),
             child: Row(
               children: [
-                DesenhoVeiculo(categoria.id, largura: 88),
+                // Plaquinha clara para os carros aparecerem bem no azul-escuro.
+                Container(
+                  width: 96,
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5FF),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: DesenhoVeiculo(categoria.id, largura: 88),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -308,17 +317,17 @@ class CartaoCategoria extends StatelessWidget {
                               style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w900,
-                                  color: tx(Color(0xFF0F172A))),
+                                  color: Colors.white),
                             )
                           : Text(categoria.nome,
                               style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w900,
-                                  color: tx(Color(0xFF0F172A)))),
+                                  color: Colors.white)),
                       const SizedBox(height: 2),
                       Text(descricao ?? categoria.descricao,
                           style: TextStyle(
-                              fontSize: 13, color: fr(Color(0xFF64748B)))),
+                              fontSize: 13, color: Color(0xFFAAB8D6))),
                     ],
                   ),
                 ),
