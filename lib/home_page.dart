@@ -135,6 +135,7 @@ class _HomePageState extends State<HomePage> {
   // Acompanhamento do motorista em tempo real
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _subCorrida;
   String? _status;
+  bool _hospitais = false; // mostra a lista de hospitais no painel de busca
   // Radar pulsando no ponto do passageiro enquanto procura motorista.
   final _radar = ValueNotifier<double>(0);
   Timer? _radarTimer;
@@ -880,7 +881,114 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // Hospitais de Pirapora, para emergência: toca e já vai para o destino.
+  static const _listaHospitais = [
+    (
+      nome: 'Fundação Hospitalar Dr. Moisés Magalhães Freire',
+      endereco: 'R. Montes Claros, 1237 · Santo Antônio',
+      local: LatLng(-17.3383174, -44.9395277),
+    ),
+    (
+      nome: 'Hospital Unimed Pirapora',
+      endereco: 'Av. João Cota Sobrinho, 627 · Industrial',
+      local: LatLng(-17.3306624, -44.9406352),
+    ),
+  ];
+
+  Future<void> _irParaHospital(String nome, LatLng local) async {
+    setState(() => _hospitais = false);
+    _destino.text = nome;
+    await _calcularPara(local, nome);
+  }
+
+  Widget _painelHospitais() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            IconButton(
+              tooltip: 'Voltar',
+              icon: Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 20, color: tx(azulNoite)),
+              onPressed: () => setState(() => _hospitais = false),
+            ),
+            Text('Hospitais',
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: tx(azulNoite),
+                    letterSpacing: -0.3)),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 48, bottom: 4),
+          child: Text('Toque no hospital para ir direto',
+              style: TextStyle(fontSize: 13, color: fr(Colors.black54))),
+        ),
+        if (_calculando)
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: LinearProgressIndicator(),
+          ),
+        for (final h in _listaHospitais)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Material(
+              color: fu(const Color(0xFFF4F6FA)),
+              borderRadius: BorderRadius.circular(18),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => _irParaHospital(h.nome, h.local),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: const BoxDecoration(
+                            color: Color(0xFFFDECEC), shape: BoxShape.circle),
+                        alignment: Alignment.center,
+                        child: const Text('🏥', style: TextStyle(fontSize: 22)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(h.nome,
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: tx(azulNoite))),
+                            const SizedBox(height: 3),
+                            Text(h.endereco,
+                                style: TextStyle(
+                                    fontSize: 13, color: fr(Colors.black54))),
+                            const SizedBox(height: 3),
+                            const Text('Aberto 24 horas',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF2E7D32))),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, color: tx(azulNoite)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buscaDestino(int motoristas) {
+    if (_hospitais) return _painelHospitais();
     final aberta = _buscaAberta;
     final borda = OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
@@ -945,7 +1053,7 @@ class _HomePageState extends State<HomePage> {
             runSpacing: 8,
             children: [
               _Atalho('🚌', 'Rodoviária', () => _atalho('Rodoviária de Pirapora')),
-              _Atalho('🏥', 'Hospital', () => _atalho('Hospital Pirapora')),
+              _Atalho('🏥', 'Hospital', () => setState(() => _hospitais = true)),
               _Atalho('🛒', 'Centro', () => _atalho('Centro, Pirapora')),
             ],
           ),
