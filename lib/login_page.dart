@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'cadastro_passageiro.dart';
 import 'creditos.dart';
 import 'cores.dart';
+import 'recuperar_acesso.dart';
 
 const _azulNoite = Color(0xFF0B2545);
 const _azul = Color(0xFF1565C0);
@@ -207,8 +208,10 @@ class _LoginPageState extends State<LoginPage> {
         _rotulo(
           'Senha',
           acao: GestureDetector(
-            onTap: _esqueciSenha,
-            child: const Text('Esqueci a senha',
+            onTap: () => recuperarAcesso(context,
+                emailInicial: _email.text.trim(),
+                comWhatsApp: true),
+            child: const Text('Esqueci a senha ou e-mail',
                 style: TextStyle(
                     fontSize: 13, fontWeight: FontWeight.w600, color: _azul)),
           ),
