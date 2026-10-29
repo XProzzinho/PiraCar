@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'cadastro_etapas.dart';
+import 'termos.dart';
 import 'menu_lateral.dart' show cpfValido, soDigitos;
 
 /// Cadastro do passageiro em etapas:
@@ -24,6 +25,7 @@ class _CadastroPassageiroPageState extends State<CadastroPassageiroPage> {
   int _etapa = 1;
   bool _carregando = false;
   bool _verSenha = false;
+  bool _aceitouTermos = false;
 
   final _nome = TextEditingController();
   final _cpf = TextEditingController();
@@ -73,6 +75,9 @@ class _CadastroPassageiroPageState extends State<CadastroPassageiroPage> {
           return 'A senha precisa ter pelo menos 6 caracteres.';
         }
         if (_senha.text != _senha2.text) return 'As senhas não são iguais.';
+        if (!_aceitouTermos) {
+          return 'Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.';
+        }
         return null;
     }
   }
@@ -115,6 +120,8 @@ class _CadastroPassageiroPageState extends State<CadastroPassageiroPage> {
         if (_foto != null) 'foto': base64Encode(_foto!),
         'role': 'passageiro',
         'criadoEm': FieldValue.serverTimestamp(),
+        'termosAceitosEm': FieldValue.serverTimestamp(),
+        'termosVersao': versaoTermos,
       });
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
     } on FirebaseAuthException catch (e) {
@@ -255,10 +262,9 @@ class _CadastroPassageiroPageState extends State<CadastroPassageiroPage> {
         titulo: 'Crie seu acesso',
         subtitulo: 'É com esse e-mail e senha que você vai entrar.',
         botao: 'Criar minha conta',
-        rodape: const Text(
-          'Ao criar a conta você aceita os Termos de uso do Uai Car.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: corTextoSuave),
+        rodape: AceiteTermos(
+          aceito: _aceitouTermos,
+          onChanged: (v) => setState(() => _aceitouTermos = v),
         ),
         campos: [
           CampoCadastro(
