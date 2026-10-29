@@ -17,6 +17,7 @@ import 'lugares.dart';
 import 'menu_lateral.dart';
 import 'rota.dart';
 import 'cores.dart';
+import 'avisos_admin.dart';
 
 // Preço: valor fixo até X km; depois, valor por km extra (proporcional).
 // O admin muda em config/app (precoBase, kmIncluidos, precoKm).
@@ -188,6 +189,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    iniciarAvisosAdmin('passageiros');
     _subMoto = motoAtiva().listen((v) {
       if (!mounted) return;
       setState(() {
