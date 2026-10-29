@@ -17,6 +17,7 @@ dependencies:
   geocoding: ^3.0.0
   http: ^1.2.2
   image_picker: ^1.1.2
+  shared_preferences: ^2.3.2
 
 dependency_overrides:
   geolocator_android: 4.6.1
