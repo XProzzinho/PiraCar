@@ -135,6 +135,9 @@ class _HomePageState extends State<HomePage> {
   // Acompanhamento do motorista em tempo real
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _subCorrida;
   String? _status;
+  // Radar pulsando no ponto do passageiro enquanto procura motorista.
+  final _radar = ValueNotifier<double>(0);
+  Timer? _radarTimer;
   LatLng? _motorista;
   Rota? _rotaMotorista;
   LatLng? _rotaOrigem;
@@ -260,6 +263,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    _radarTimer?.cancel();
+    _radar.dispose();
     _atrasoBusca?.cancel();
     _focoBusca.dispose();
     _subLivres?.cancel();
@@ -567,7 +572,20 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _ligarRadar(bool ligar) {
+    if (!ligar) {
+      _radarTimer?.cancel();
+      _radarTimer = null;
+      return;
+    }
+    if (_radarTimer != null) return;
+    _radarTimer = Timer.periodic(const Duration(milliseconds: 120), (_) {
+      _radar.value = (_radar.value + 0.05) % 1.0;
+    });
+  }
+
   void _limparAcompanhamento() {
+    _ligarRadar(false);
     _ligarDespacho(false);
     _dadosCorrida = null;
     _rodadaLocal = null;
@@ -596,6 +614,7 @@ class _HomePageState extends State<HomePage> {
       final gp = d['motoristaPos'];
       final pos = gp is GeoPoint ? LatLng(gp.latitude, gp.longitude) : null;
       final anterior = _status;
+      _ligarRadar(status == 'solicitada');
       setState(() {
         _status = status;
         _motorista = pos;
@@ -694,6 +713,8 @@ class _HomePageState extends State<HomePage> {
     _limparDestino();
   }
 
+  bool get _procurando => _corridaId != null && _status == 'solicitada';
+
   @override
   Widget build(BuildContext context) {
     final emCorrida = _status == 'aceita' || _status == 'em_andamento';
@@ -708,7 +729,9 @@ class _HomePageState extends State<HomePage> {
       drawer: const MenuLateral(),
       body: Stack(
         children: [
-          GoogleMap(
+          ValueListenableBuilder<double>(
+            valueListenable: _radar,
+            builder: (context, t, _) => GoogleMap(
             style: estiloMapa,
             initialCameraPosition:
                 const CameraPosition(target: _centroPirapora, zoom: 15),
@@ -717,6 +740,20 @@ class _HomePageState extends State<HomePage> {
             mapToolbarEnabled: false,
             padding: EdgeInsets.only(
                 top: 90, bottom: _rota != null ? 340 : 230),
+            circles: {
+              if (_status == 'solicitada' && _posicao != null)
+                for (final fase in [0.0, 0.5])
+                  Circle(
+                    circleId: CircleId('radar_$fase'),
+                    center: _posicao!,
+                    radius: 40 + 360 * ((t + fase) % 1.0),
+                    strokeWidth: 2,
+                    strokeColor: const Color(0xFF2563EB)
+                        .withOpacity(0.7 * (1 - ((t + fase) % 1.0))),
+                    fillColor: const Color(0xFF2563EB)
+                        .withOpacity(0.25 * (1 - ((t + fase) % 1.0))),
+                  ),
+            },
             polylines: {
               if (mostrarRotaMotorista)
                 Polyline(
@@ -765,6 +802,7 @@ class _HomePageState extends State<HomePage> {
             },
             onMapCreated: (c) => _mapa = c,
           ),
+          ),
           Positioned(
             top: 0,
             left: 0,
@@ -805,26 +843,24 @@ class _HomePageState extends State<HomePage> {
                   constraints: BoxConstraints(
                       maxHeight: buscando ? altura * 0.78 : altura * 0.6),
                   decoration: BoxDecoration(
-                    color: sup(Colors.white),
+                    color: _procurando ? null : sup(Colors.white),
+                    gradient: _procurando
+                        ? const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF14213D), Color(0xFF1F3563)])
+                        : null,
                     borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 14)],
+                    boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 14)],
                   ),
                   child: SafeArea(
                     top: false,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          margin: const EdgeInsets.only(top: 10, bottom: 4),
-                          width: 40,
-                          height: 5,
-                          decoration: BoxDecoration(
-                              color: Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(3)),
-                        ),
                         Flexible(
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 6, 18, 16),
+                            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
                             child: _corridaId != null
                                 ? SingleChildScrollView(child: _painelCorrida())
                                 : (_rota != null
@@ -1174,6 +1210,106 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // Painel azul-escuro mostrado enquanto procura motorista.
+  Widget _painelBuscando(
+      Map<String, dynamic> dados, double? valor, String? forma) {
+    const amarelo = Color(0xFFFFD23F);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('BUSCANDO',
+                      style: TextStyle(
+                          fontSize: 12,
+                          letterSpacing: 1.6,
+                          fontWeight: FontWeight.w800,
+                          color: amarelo)),
+                  SizedBox(height: 4),
+                  Text('Procurando motorista',
+                      style: TextStyle(
+                          fontSize: 25,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white)),
+                ],
+              ),
+            ),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: amarelo,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                      color: amarelo.withOpacity(0.25), spreadRadius: 8)
+                ],
+              ),
+              child: const Icon(Icons.directions_car_filled,
+                  size: 34, color: Color(0xFF14213D)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        const _EtapasBusca(),
+        const SizedBox(height: 18),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Destino',
+                      style: TextStyle(fontSize: 12, color: Color(0xFFAAB8D6))),
+                  const SizedBox(height: 2),
+                  Text('${dados['destinoTexto'] ?? ''}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white)),
+                ],
+              ),
+            ),
+            if (valor != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(forma ?? '',
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFFAAB8D6))),
+                  Text(formatarReal(valor),
+                      style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: amarelo)),
+                ],
+              ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        TextButton(
+          onPressed: _cancelar,
+          style: TextButton.styleFrom(
+            backgroundColor: Colors.white.withOpacity(0.12),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: const StadiumBorder(),
+          ),
+          child: const Text('Cancelar corrida',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+        ),
+      ],
+    );
+  }
+
   Widget _painelCorrida() {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: _db.collection('corridas').doc(_corridaId).snapshots(),
@@ -1184,6 +1320,9 @@ class _HomePageState extends State<HomePage> {
         final encerrada = status == 'finalizada' || status == 'cancelada';
         final valor = (dados['valor'] as num?)?.toDouble();
         final forma = _nomesPagamento[dados['pagamento']];
+        if (status == 'solicitada') {
+          return _painelBuscando(dados, valor, forma);
+        }
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1421,6 +1560,56 @@ class _Atalho extends StatelessWidget {
                   color: tx(azulNoite), fontWeight: FontWeight.w700)),
         ),
       ),
+    );
+  }
+}
+
+/// Quatro traços que vão se enchendo, em repetição, enquanto procura.
+class _EtapasBusca extends StatefulWidget {
+  const _EtapasBusca();
+
+  @override
+  State<_EtapasBusca> createState() => _EtapasBuscaState();
+}
+
+class _EtapasBuscaState extends State<_EtapasBusca> {
+  Timer? _t;
+  int _n = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _t = Timer.periodic(const Duration(milliseconds: 900), (_) {
+      if (mounted) setState(() => _n = _n % 4 + 1);
+    });
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < 4; i++) ...[
+          Expanded(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              height: 5,
+              decoration: BoxDecoration(
+                color: i < _n
+                    ? const Color(0xFFFFD23F)
+                    : Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+          if (i < 3) const SizedBox(width: 6),
+        ],
+      ],
     );
   }
 }
