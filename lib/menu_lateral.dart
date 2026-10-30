@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'chat.dart';
+import 'como_funciona.dart';
 import 'foto.dart';
 import 'foto_trocar.dart';
 import 'menu_visual.dart';
@@ -149,6 +150,8 @@ class MenuLateral extends StatelessWidget {
                 contador: snap.data ?? 0,
               ),
             ),
+            ItemMenu(Icons.lightbulb_outline, 'Como funciona',
+                () => abrirDoMenu(context, const ComoFuncionaPage())),
             ItemMenu(Icons.settings_outlined, 'Configurações',
                 () => abrirDoMenu(context, const ConfiguracoesPage())),
             ItemMenu(Icons.logout, 'Sair', () {

@@ -122,6 +122,7 @@ class _CadastroPassageiroPageState extends State<CadastroPassageiroPage> {
         'criadoEm': FieldValue.serverTimestamp(),
         'termosAceitosEm': FieldValue.serverTimestamp(),
         'termosVersao': versaoTermos,
+        'mostrarTutorial': true,
       });
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
     } on FirebaseAuthException catch (e) {
