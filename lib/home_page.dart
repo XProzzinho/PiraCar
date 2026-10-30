@@ -10,6 +10,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'aviso.dart';
 import 'carro_icone.dart';
+import 'como_funciona.dart';
 import 'categorias.dart';
 import 'chat_corrida.dart';
 import 'foto.dart';
@@ -190,6 +191,10 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     iniciarAvisosAdmin('passageiros');
+    // conta recém-criada: mostra o passo a passo de como funciona
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) mostrarTutorialSeNovo(context, _uid);
+    });
     _subMoto = motoAtiva().listen((v) {
       if (!mounted) return;
       setState(() {
