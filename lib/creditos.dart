@@ -2,10 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const textoCreditosPadrao = 'Desenvolvido por Geanderson Alves  @GeanAlves';
+const textoCreditosPadrao = '';
 
 /// Texto do rodapé da tela de entrada. O admin pode trocar em
-/// Administração (config/app.creditos). Sem internet, mostra o padrão.
+/// Administração (config/app.creditos). Sem mensagem, não mostra nada.
 class CreditosRodape extends StatelessWidget {
   const CreditosRodape({super.key});
 
@@ -20,19 +20,7 @@ class CreditosRodape extends StatelessWidget {
         if (texto.isNotEmpty) {
           return Text(texto, textAlign: TextAlign.center, style: estilo);
         }
-        return const Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(text: 'Desenvolvido por '),
-              TextSpan(
-                  text: 'Geanderson Alves',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-              TextSpan(text: '  @GeanAlves'),
-            ],
-          ),
-          textAlign: TextAlign.center,
-          style: estilo,
-        );
+        return const SizedBox.shrink();
       },
     );
   }
