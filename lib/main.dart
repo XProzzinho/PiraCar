@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'creditos.dart';
 import 'home_page.dart';
 import 'login_page.dart';
+import 'termos.dart';
 import 'cores.dart';
 
 Future<void> main() async {
@@ -33,7 +34,7 @@ class PiraCarMotoristaApp extends StatelessWidget {
           }
           return snap.hasData
               ? const VerificaVersao(
-                  campo: 'versaoMinimaPassageiro', child: HomePage())
+                  campo: 'versaoMinimaPassageiro', child: PortaoTermos(child: HomePage()))
               : const VerificaVersao(
                   campo: 'versaoMinimaPassageiro', child: LoginPage());
         },

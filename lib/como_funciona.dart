@@ -29,7 +29,11 @@ const passosTutorial = [
 Future<void> mostrarTutorialSeNovo(BuildContext context, String uid) async {
   final ref = FirebaseFirestore.instance.collection('users').doc(uid);
   try {
-    final doc = await ref.get();
+    // logo após o cadastro o documento ainda pode estar sendo gravado
+    final doc = await ref
+        .snapshots()
+        .firstWhere((s) => s.exists)
+        .timeout(const Duration(seconds: 15));
     if (doc.data()?['mostrarTutorial'] != true || !context.mounted) return;
     await Navigator.push(
         context, MaterialPageRoute(builder: (_) => const ComoFuncionaPage()));
