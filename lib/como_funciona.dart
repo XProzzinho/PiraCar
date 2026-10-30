@@ -1,28 +1,33 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import 'tutorial_cenas.dart';
+
 /// Um passo do "Como funciona" mostrado depois do cadastro.
 class PassoTutorial {
-  const PassoTutorial(this.icone, this.titulo, this.texto);
+  const PassoTutorial(this.icone, this.titulo, this.texto, this.cena);
 
   final IconData icone;
   final String titulo;
   final String texto;
+
+  /// Animação do passo (ver tutorial_cenas.dart).
+  final String cena;
 }
 
 const passosTutorial = [
   PassoTutorial(Icons.place_outlined, 'Para onde vamos?',
-      'Toque em "Para onde vamos?" e digite o endereço ou o nome do lugar. O ponto de partida é onde você está.'),
+      'Toque em "Para onde vamos?" e digite o endereço ou o nome do lugar. O ponto de partida é onde você está.', 'busca'),
   PassoTutorial(Icons.receipt_long_outlined, 'Veja o preço antes',
-      'O valor aparece antes de pedir. Escolha a categoria e a forma de pagamento: Pix, crédito ou débito.'),
+      'O valor aparece antes de pedir. Escolha a categoria e a forma de pagamento: Pix, crédito ou débito.', 'preco'),
   PassoTutorial(Icons.wifi_tethering, 'O motorista mais perto',
-      'Ao pedir, o app chama o motorista mais perto de você. Deixe o app aberto enquanto ele procura o motorista.'),
+      'Ao pedir, o app chama o motorista mais perto de você. Deixe o app aberto enquanto ele procura o motorista.', 'radar'),
   PassoTutorial(Icons.directions_car_outlined, 'Acompanhe pelo mapa',
-      'Quando o motorista aceitar, você vê o nome, a foto, o carro e a placa, e acompanha ele chegando. Confira a placa antes de entrar. Dá para conversar pelo chat.'),
+      'Quando o motorista aceitar, você vê o nome, a foto, o carro e a placa, e acompanha ele chegando. Confira a placa antes de entrar. Dá para conversar pelo chat.', 'acompanha'),
   PassoTutorial(Icons.star_outline, 'Pague e avalie',
-      'Ao chegar, pague direto ao motorista pela forma escolhida e avalie a viagem com estrelas.'),
+      'Ao chegar, pague direto ao motorista pela forma escolhida e avalie a viagem com estrelas.', 'avalia'),
   PassoTutorial(Icons.menu, 'Tudo no menu',
-      'No menu lateral ficam suas viagens, cupons, ajuda, o Fale conosco e os Termos de Uso. Este passo a passo também fica lá, em "Como funciona".'),
+      'No menu lateral ficam suas viagens, cupons, ajuda, o Fale conosco e os Termos de Uso. Este passo a passo também fica lá, em "Como funciona".', 'menu_p'),
 ];
 
 /// Abre o passo a passo se a conta acabou de ser criada (mostrarTutorial).
@@ -113,22 +118,14 @@ class _ComoFuncionaPageState extends State<ComoFuncionaPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 150,
-                          height: 150,
-                          decoration: const BoxDecoration(
-                              color: Color(0x1FFFFFFF), shape: BoxShape.circle),
-                          child: Center(
-                            child: Container(
-                              width: 104,
-                              height: 104,
-                              decoration: const BoxDecoration(
-                                  color: _amarelo, shape: BoxShape.circle),
-                              child: Icon(p.icone, size: 54, color: _fundo),
-                            ),
+                        Flexible(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 360),
+                            child: CenaTutorial(
+                                key: ValueKey(p.cena), nome: p.cena),
                           ),
                         ),
-                        const SizedBox(height: 36),
+                        const SizedBox(height: 28),
                         Text('Passo ${i + 1} de ${passosTutorial.length}',
                             style: const TextStyle(
                                 color: _amarelo,
