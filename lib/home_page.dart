@@ -13,6 +13,7 @@ import 'carro_icone.dart';
 import 'como_funciona.dart';
 import 'categorias.dart';
 import 'chat_corrida.dart';
+import 'seguranca.dart';
 import 'foto.dart';
 import 'lugares.dart';
 import 'menu_lateral.dart';
@@ -874,6 +875,17 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                if (_corridaId != null &&
+                    chatAberto(_status) &&
+                    _dadosCorrida?['motoristaId'] is String)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 0, 16, 12),
+                    child: BotaoSeguranca(
+                      corridaId: _corridaId!,
+                      souMotorista: false,
+                      outroId: _dadosCorrida?['motoristaId'] as String?,
+                    ),
+                  ),
                 if (_corridaId != null &&
                     chatAberto(_status) &&
                     _dadosCorrida?['motoristaId'] is String)
