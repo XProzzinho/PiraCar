@@ -880,17 +880,6 @@ class _HomePageState extends State<HomePage> {
                     _dadosCorrida?['motoristaId'] is String)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(0, 0, 16, 12),
-                    child: BotaoSeguranca(
-                      corridaId: _corridaId!,
-                      souMotorista: false,
-                      outroId: _dadosCorrida?['motoristaId'] as String?,
-                    ),
-                  ),
-                if (_corridaId != null &&
-                    chatAberto(_status) &&
-                    _dadosCorrida?['motoristaId'] is String)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 0, 16, 12),
                     child: BolinhaChat(
                       corridaId: _corridaId!,
                       souMotorista: false,
@@ -1487,7 +1476,17 @@ class _HomePageState extends State<HomePage> {
           children: [
             if ((status == 'aceita' || status == 'em_andamento') &&
                 dados['motoristaId'] is String)
-              _CartaoMotorista(uid: dados['motoristaId'] as String),
+              _CartaoMotorista(
+                uid: dados['motoristaId'] as String,
+                seguranca: _corridaId != null && chatAberto(status)
+                    ? BotaoSeguranca(
+                        corridaId: _corridaId!,
+                        souMotorista: false,
+                        outroId: dados['motoristaId'] as String,
+                        tamanho: 48,
+                      )
+                    : null,
+              ),
             Text(_statusTexto[status] ?? status,
                 style: Theme.of(context).textTheme.titleMedium),
             if (status == 'aceita' && dados['naFila'] == true)
@@ -1590,9 +1589,12 @@ class _AvaliacaoDialogState extends State<_AvaliacaoDialog> {
 
 /// Foto, nome, nota e carro do motorista que aceitou a corrida.
 class _CartaoMotorista extends StatelessWidget {
-  const _CartaoMotorista({required this.uid});
+  const _CartaoMotorista({required this.uid, this.seguranca});
 
   final String uid;
+
+  /// Botão de segurança ao lado da placa (durante a corrida).
+  final Widget? seguranca;
 
   @override
   Widget build(BuildContext context) {
@@ -1677,6 +1679,10 @@ class _CartaoMotorista extends StatelessWidget {
                       style: const TextStyle(
                           fontWeight: FontWeight.w800, letterSpacing: 1)),
                 ),
+              if (seguranca != null) ...[
+                const SizedBox(width: 8),
+                seguranca!,
+              ],
             ],
           ),
         );
