@@ -574,8 +574,21 @@ class _HomePageState extends State<HomePage> {
     if (origem == null) return;
     // só motoristas que rodam na categoria pedida
     final cat = (d['categoria'] as String?) ?? 'piracar';
-    final candidatos =
+    final daCategoria =
         _livresAgora.where((l) => l.categorias.contains(cat)).toList();
+    // quem já está com o pedido de outro passageiro na tela não recebe um
+    // segundo junto (antes todos os pedidos iam para o mesmo motorista)
+    _despachando = true;
+    final ocupados = await _motoristasComOferta(id);
+    _despachando = false;
+    if (!mounted || _corridaId != id) return;
+    final candidatos =
+        daCategoria.where((l) => !ocupados.contains(l.id)).toList();
+    if (candidatos.isEmpty && daCategoria.isNotEmpty) {
+      // todos os livres estão vendo outro pedido: espera liberar
+      if (atual != null) await _ofertar(id, null, recusados, false);
+      return;
+    }
     var livres = candidatos.where((l) => !recusados.contains(l.id)).toList();
     var recomecar = false;
     if (livres.isEmpty && candidatos.isNotEmpty) {
@@ -602,6 +615,30 @@ class _HomePageState extends State<HomePage> {
 
     livres.sort((a, b) => dist(a).compareTo(dist(b)));
     await _ofertar(id, livres.first.id, recusados, recomecar);
+  }
+
+  /// Motoristas com a oferta de OUTRO pedido feita há menos de 24 s.
+  Future<Set<String>> _motoristasComOferta(String minhaCorrida) async {
+    try {
+      final q = await _db
+          .collection('corridas')
+          .where('status', isEqualTo: 'solicitada')
+          .get();
+      final agora = DateTime.now();
+      final ocupados = <String>{};
+      for (final c in q.docs) {
+        final m = c.data();
+        final para = m['ofertadoPara'];
+        final em = m['ofertadoEm'];
+        if (c.id == minhaCorrida || para is! String || em is! Timestamp) {
+          continue;
+        }
+        if (agora.difference(em.toDate()) < _tempoOferta) ocupados.add(para);
+      }
+      return ocupados;
+    } catch (_) {
+      return {};
+    }
   }
 
   Future<void> _ofertar(String id, String? motorista, Set<String> recusados,
